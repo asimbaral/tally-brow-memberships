@@ -1,0 +1,23 @@
+There are two tables in supabase: create table public."Service" (
+  "Category" text not null,
+  "Service" text not null,
+  "Price" bigint null,
+  constraint Service_pkey primary key ("Category", "Service")
+) TABLESPACE pg_default;
+and 
+create table public."Users" (
+  id uuid not null default gen_random_uuid (),
+  created_at timestamp with time zone not null default now(),
+  name character varying null,
+  "usesPhone" boolean not null,
+  "phoneNumber" text null,
+  "emailAddress" character varying null,
+  "zipCode" text not null,
+  "optedIn" boolean not null,
+  "agreedToTerms" boolean not null,
+  business text null default 'TallyBrowStudio'::text,
+  constraint Users_pkey primary key (id),
+  constraint Users_emailAddress_key unique ("emailAddress"),
+  constraint Users_phoneNumber_key unique ("phoneNumber")
+) TABLESPACE pg_default;
+Sync both tables with this application where fit
