@@ -5,12 +5,12 @@ import { Search, Plus, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ClientList } from "@/components/client-list"
-import { AddClientModal } from "@/components/add-client-modal"
-import { type Client, getClients } from "@/lib/data"
+import { MembershipList } from "@/components/membership-list"
+import { AddMembershipModal } from "@/components/add-client-modal"
+import { type Membership, getMemberships } from "@/lib/data"
 
 export default function HomePage() {
-  const [clients, setClients] = useState<Client[]>([])
+  const [memberships, setMemberships] = useState<Membership[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [serviceFilter, setServiceFilter] = useState("all")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -18,32 +18,32 @@ export default function HomePage() {
 
   useEffect(() => {
     setIsMounted(true)
-    const loadClients = async () => {
-      const clientsData = await getClients()
-      setClients(clientsData)
+    const loadMemberships = async () => {
+      const membershipsData = await getMemberships()
+      setMemberships(membershipsData)
     }
-    loadClients()
+    loadMemberships()
   }, [])
 
-  const handleClientUpdate = async () => {
-    const clientsData = await getClients()
-    setClients(clientsData)
+  const handleMembershipUpdate = async () => {
+    const membershipsData = await getMemberships()
+    setMemberships(membershipsData)
   }
 
-  const filteredClients = clients.filter((client) => {
+  const filteredMemberships = memberships.filter((membership) => {
     const matchesSearch =
-      client.name.toLowerCase().includes(searchTerm.toLowerCase()) || client.phone.includes(searchTerm)
+      membership.user.name.toLowerCase().includes(searchTerm.toLowerCase()) || membership.phone.includes(searchTerm)
 
     const matchesService =
       serviceFilter === "all" ||
-      client.serviceTypes.some((service) => service.toLowerCase().includes(serviceFilter.toLowerCase()))
+      membership.serviceTypes.some((service) => service.toLowerCase().includes(serviceFilter.toLowerCase()))
 
     return matchesSearch && matchesService
   })
 
   // Only compute service types after mount to avoid hydration mismatch
   const allServiceTypes = isMounted 
-    ? Array.from(new Set(clients.flatMap((client) => client.serviceTypes)))
+    ? Array.from(new Set(memberships.flatMap((membership) => membership.serviceTypes)))
     : []
 
   return (
@@ -97,14 +97,14 @@ export default function HomePage() {
             </div>
           </div>
 
-          <ClientList clients={filteredClients} onClientUpdate={handleClientUpdate} />
+          <MembershipList memberships={filteredMemberships} onMembershipUpdate={handleMembershipUpdate} />
         </div>
       </div>
 
-      <AddClientModal
+      <AddMembershipModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onClientAdded={handleClientUpdate}
+        onMembershipAdded={handleMembershipUpdate}
       />
     </div>
   )

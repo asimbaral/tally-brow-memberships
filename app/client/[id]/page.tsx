@@ -7,31 +7,24 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddVisitModal } from "@/components/add-visit-modal"
-import { type Client, type Visit, type Membership, getClientByMembershipId, getMembershipById, getVisitsByMembershipId } from "@/lib/data"
+import { type Visit, type Membership, getMembershipById, getVisitsByMembershipId } from "@/lib/data"
 
 export default function MembershipProfilePage() {
   const params = useParams()
   const router = useRouter()
   const membershipId = params.id as string
 
-  const [client, setClient] = useState<Client | null>(null)
   const [membership, setMembership] = useState<Membership | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false)
 
   useEffect(() => {
     const loadMembership = async () => {
-      // Get the specific membership
+      // Get the specific membership with user info
       const membershipData = await getMembershipById(membershipId)
       
       if (membershipData) {
         setMembership(membershipData)
-        
-        // Get client info for display
-        const clientData = await getClientByMembershipId(membershipId)
-        if (clientData) {
-          setClient(clientData)
-        }
         
         // Get visits for this specific membership
         const visitsData = await getVisitsByMembershipId(membershipId)
@@ -53,13 +46,13 @@ export default function MembershipProfilePage() {
     setVisits(visitsData)
   }
 
-  if (!membership || !client) {
+  if (!membership) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">Membership not found</h2>
           <Button onClick={() => router.push("/")} className="mt-4">
-            Back to Client List
+            Back to Membership List
           </Button>
         </div>
       </div>
@@ -80,7 +73,7 @@ export default function MembershipProfilePage() {
                 Back to Clients
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{client.name}</h1>
+                <h1 className="text-3xl font-bold text-gray-900">{membership.user.name}</h1>
                 <p className="mt-1 text-gray-600">Membership Details</p>
               </div>
             </div>
@@ -166,11 +159,11 @@ export default function MembershipProfilePage() {
                   </CardTitle>
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm font-medium">{client.phone}</span>
+                    <span className="text-sm font-medium">{membership.phone}</span>
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900 mb-1 text-sm">Zip Code</h4>
-                    <p className="text-sm text-gray-600">{client.zipCode}</p>
+                    <p className="text-sm text-gray-600">{membership.user.zipCode}</p>
                   </div>
                 </div>
               </CardContent>
@@ -233,7 +226,7 @@ export default function MembershipProfilePage() {
         isOpen={isAddVisitModalOpen}
         onClose={() => setIsAddVisitModalOpen(false)}
         onVisitAdded={handleVisitAdded}
-        clientId={client.id}
+        clientId={membership.user.id}
       />
     </div>
   )

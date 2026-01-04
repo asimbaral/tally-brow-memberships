@@ -2,18 +2,8 @@
 
 import { supabase, type SupabaseUser, type SupabaseService, type SupabaseVisit, type SupabaseMembership } from './supabase'
 
-export interface Membership {
-  id: string
-  status: "active" | "expired"
-  maxVisits: number
-  created_at: string
-  updated_at: string
-  totalVisits: number
-  remainingVisits: number
-  services: string[] | null
-}
-
-export interface Client {
+// User/Client information (simplified, no longer a separate entity)
+export interface UserInfo {
   id: string
   created_at: string
   name: string
@@ -24,17 +14,27 @@ export interface Client {
   optedIn: boolean
   agreedToTerms: boolean
   business: string | null
-  memberships: Membership[]
   // Additional metadata fields (stored in localStorage)
-  serviceTypes: string[]
   createdBy: string
   notes?: string
   lastUpdatedBy?: string
   lastUpdatedAt?: string
+}
+
+export interface Membership {
+  id: string
+  status: "active" | "expired"
+  maxVisits: number
+  created_at: string
+  updated_at: string
+  totalVisits: number
+  remainingVisits: number
+  services: string[] | null
+  // User/Client information as an attribute of membership
+  user: UserInfo
   // Computed properties for backward compatibility
   phone: string
-  createdAt: string
-  membershipStatus: "active" | "expired"
+  serviceTypes: string[]
 }
 
 export interface Visit {
@@ -107,19 +107,9 @@ function saveClientMetadata(userId: string, metadata: {
   localStorage.setItem(`client_metadata_${userId}`, JSON.stringify(metadata))
 }
 
-// Convert SupabaseUser with memberships to Client
-function supabaseUserToClient(user: SupabaseUser & { memberships?: Membership[] }): Client {
+// Convert SupabaseUser to UserInfo
+function supabaseUserToUserInfo(user: SupabaseUser): UserInfo {
   const metadata = getClientMetadata(user.id)
-  const memberships = user.memberships || []
-  
-  // Get active membership or most recent one for backward compatibility
-  const activeMembership = memberships.find(m => m.status === 'active') || memberships[0]
-  const membershipStatus = activeMembership?.status || metadata.membershipStatus || "active"
-  
-  // serviceTypes now comes from the membership's services field
-  // Since getClients returns one entry per membership, each Client represents one membership
-  // Use the first (and typically only) membership's services for this client entry
-  const serviceTypes = memberships[0]?.services || []
   
   return {
     id: user.id,
@@ -132,40 +122,33 @@ function supabaseUserToClient(user: SupabaseUser & { memberships?: Membership[] 
     optedIn: user.optedIn,
     agreedToTerms: user.agreedToTerms,
     business: user.business,
-    memberships: memberships,
-    // Additional metadata fields (not stored in database)
-    serviceTypes: serviceTypes, // From membership.services
     createdBy: metadata.createdBy,
     notes: metadata.notes,
     lastUpdatedBy: metadata.lastUpdatedBy,
     lastUpdatedAt: metadata.lastUpdatedAt,
-    // Computed properties for backward compatibility
-    phone: user.phoneNumber || "",
-    createdAt: user.created_at,
-    membershipStatus: membershipStatus,
   }
 }
 
-// Convert Client to SupabaseUser (for insert/update)
-function clientToSupabaseUser(client: Partial<Client>): Partial<SupabaseUser> {
+// Convert UserInfo to SupabaseUser (for insert/update)
+function userInfoToSupabaseUser(userInfo: Partial<UserInfo>): Partial<SupabaseUser> {
   return {
-    name: client.name || null,
-    phoneNumber: client.phoneNumber || client.phone || null,
-    zipCode: client.zipCode || "",
-    emailAddress: client.emailAddress || null,
-    usesPhone: client.usesPhone ?? true,
-    optedIn: client.optedIn ?? false,
-    agreedToTerms: client.agreedToTerms ?? false,
-    business: client.business || "TallyBrowStudio",
+    name: userInfo.name || null,
+    phoneNumber: userInfo.phoneNumber || null,
+    zipCode: userInfo.zipCode || "",
+    emailAddress: userInfo.emailAddress || null,
+    usesPhone: userInfo.usesPhone ?? true,
+    optedIn: userInfo.optedIn ?? false,
+    agreedToTerms: userInfo.agreedToTerms ?? false,
+    business: userInfo.business || "TallyBrowStudio",
   }
 }
 
-// Get all clients from Supabase (returns one entry per membership)
-// If a client has multiple memberships, they will appear multiple times in the list
-export async function getClients(): Promise<Client[]> {
+// Get all memberships from Supabase (returns one entry per membership)
+// If a user has multiple memberships, they will appear multiple times in the list
+export async function getMemberships(): Promise<Membership[]> {
   try {
     // Query from Memberships and join with Users
-    // This gives us one row per membership, so clients with multiple memberships appear multiple times
+    // This gives us one row per membership
     const { data, error } = await supabase
       .from('Memberships')
       .select(`
@@ -182,17 +165,19 @@ export async function getClients(): Promise<Client[]> {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching clients:', error)
+      console.error('Error fetching memberships:', error)
       return []
     }
 
-    // Transform each membership+user combination into a Client
-    // Each membership becomes a separate client entry
-    const clients: Client[] = []
+    // Transform each membership+user combination into a Membership
+    const memberships: Membership[] = []
     
     for (const membershipData of data || []) {
       const user = (membershipData as any).user as SupabaseUser
       if (!user) continue
+      
+      const userInfo = supabaseUserToUserInfo(user)
+      const services = membershipData.services || []
       
       const membership: Membership = {
         id: membershipData.id,
@@ -203,30 +188,31 @@ export async function getClients(): Promise<Client[]> {
         totalVisits: membershipData.totalVisits,
         remainingVisits: membershipData.remainingVisits,
         services: membershipData.services || null,
+        user: userInfo,
+        // Computed properties
+        phone: user.phoneNumber || "",
+        serviceTypes: services,
       }
       
-      // Create a client with this specific membership
-      const client = supabaseUserToClient({
-        ...user,
-        memberships: [membership],
-      })
-      
-      clients.push(client)
+      memberships.push(membership)
     }
 
-    return clients
+    return memberships
   } catch (error) {
-    console.error('Error fetching clients:', error)
+    console.error('Error fetching memberships:', error)
     return []
   }
 }
 
-// Get membership by ID
+// Get membership by ID with user information
 export async function getMembershipById(membershipId: string): Promise<Membership | null> {
   try {
     const { data, error } = await supabase
       .from('Memberships')
-      .select('*')
+      .select(`
+        *,
+        user:Users!inner(*)
+      `)
       .eq('id', membershipId)
       .single()
 
@@ -237,6 +223,12 @@ export async function getMembershipById(membershipId: string): Promise<Membershi
 
     if (!data) return null
 
+    const user = (data as any).user as SupabaseUser
+    if (!user) return null
+
+    const userInfo = supabaseUserToUserInfo(user)
+    const services = data.services || []
+
     return {
       id: data.id,
       status: data.status as "active" | "expired",
@@ -246,6 +238,10 @@ export async function getMembershipById(membershipId: string): Promise<Membershi
       totalVisits: data.totalVisits,
       remainingVisits: data.remainingVisits,
       services: data.services || null,
+      user: userInfo,
+      // Computed properties
+      phone: user.phoneNumber || "",
+      serviceTypes: services,
     }
   } catch (error) {
     console.error('Error fetching membership by ID:', error)
@@ -253,122 +249,87 @@ export async function getMembershipById(membershipId: string): Promise<Membershi
   }
 }
 
-// Get client by membership ID
-export async function getClientByMembershipId(membershipId: string): Promise<Client | null> {
+// Get memberships by phone number
+export async function getMembershipsByPhone(phone: string): Promise<Membership[]> {
   try {
-    // First get the membership to find the userId
-    const { data: membership, error: membershipError } = await supabase
+    // Query Memberships and join with Users
+    const { data, error } = await supabase
       .from('Memberships')
-      .select('userId')
-      .eq('id', membershipId)
-      .single()
-
-    if (membershipError || !membership) {
-      console.error('Error fetching membership:', membershipError)
-      return null
-    }
-
-    // Then get the user with all their memberships
-    const { data, error } = await supabase
-      .from('Users')
       .select(`
         *,
-        memberships:Memberships!inner(id, status, "totalVisits", "remainingVisits", "maxVisits", created_at, updated_at, services)
+        user:Users!inner(*)
       `)
-      .eq('id', membership.userId)
-      .maybeSingle()
+      .eq('user.phoneNumber', phone)
+      .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching client:', error)
-      return null
-    }
-
-    return data ? supabaseUserToClient(data) : null
-  } catch (error) {
-    console.error('Error fetching client by membership ID:', error)
-    return null
-  }
-}
-
-// Get client by ID (only if they have at least one membership)
-export async function getClientById(id: string): Promise<Client | null> {
-  try {
-    // Query Users and join with Memberships using inner join
-    // This ensures we only get users who have at least one membership
-    const { data, error } = await supabase
-      .from('Users')
-      .select(`
-        *,
-        memberships:Memberships!inner(id, status, "totalVisits", "remainingVisits", "maxVisits", created_at, updated_at, services)
-      `)
-      .eq('id', id)
-      .maybeSingle()
-
-    if (error) {
-      console.error('Error fetching client:', error)
-      return null
-    }
-
-    return data ? supabaseUserToClient(data) : null
-  } catch (error) {
-    console.error('Error fetching client:', error)
-    return null
-  }
-}
-
-// Get clients by phone number (only clients that have memberships)
-export async function getClientsByPhone(phone: string): Promise<Client[]> {
-  try {
-    // Query Users and join with Memberships to ensure client has at least one membership
-    const { data, error } = await supabase
-      .from('Users')
-      .select(`
-        *,
-        memberships:Memberships!inner(id, status, "totalVisits", "remainingVisits", "maxVisits", created_at, updated_at, services)
-      `)
-      .eq('phoneNumber', phone)
-
-    if (error) {
-      console.error('Error fetching clients by phone:', error)
+      console.error('Error fetching memberships by phone:', error)
       return []
     }
 
-    return (data || []).map(supabaseUserToClient)
+    const memberships: Membership[] = []
+    
+    for (const membershipData of data || []) {
+      const user = (membershipData as any).user as SupabaseUser
+      if (!user) continue
+      
+      const userInfo = supabaseUserToUserInfo(user)
+      const services = membershipData.services || []
+      
+      const membership: Membership = {
+        id: membershipData.id,
+        status: membershipData.status as "active" | "expired",
+        maxVisits: membershipData.maxVisits,
+        created_at: membershipData.created_at,
+        updated_at: membershipData.updated_at,
+        totalVisits: membershipData.totalVisits,
+        remainingVisits: membershipData.remainingVisits,
+        services: membershipData.services || null,
+        user: userInfo,
+        // Computed properties
+        phone: user.phoneNumber || "",
+        serviceTypes: services,
+      }
+      
+      memberships.push(membership)
+    }
+
+    return memberships
   } catch (error) {
-    console.error('Error fetching clients by phone:', error)
+    console.error('Error fetching memberships by phone:', error)
     return []
   }
 }
 
-// Add a new membership for an existing client
-export async function addMembershipForExistingClient(
-  clientId: string,
-  clientData: {
+// Add a new membership for an existing user
+export async function addMembershipForExistingUser(
+  userId: string,
+  membershipData: {
     serviceTypes: string[]
     notes?: string
     createdBy: string
   }
 ): Promise<void> {
   try {
-    // Update metadata (serviceTypes is stored in membership.services, not localStorage)
-    saveClientMetadata(clientId, {
-      notes: clientData.notes,
-      createdBy: clientData.createdBy,
-      lastUpdatedBy: clientData.createdBy,
+    // Update metadata
+    saveClientMetadata(userId, {
+      notes: membershipData.notes,
+      createdBy: membershipData.createdBy,
+      lastUpdatedBy: membershipData.createdBy,
       lastUpdatedAt: new Date().toISOString(),
       membershipStatus: "active",
     })
 
-    // Create new membership for the existing client
+    // Create new membership for the existing user
     const { data: newMembership, error: membershipError } = await supabase
       .from('Memberships')
       .insert([{
-        userId: clientId,
+        userId: userId,
         status: "active",
         totalVisits: 0,
         remainingVisits: 5,
         maxVisits: 5,
-        services: clientData.serviceTypes.length > 0 ? clientData.serviceTypes : null,
+        services: membershipData.serviceTypes.length > 0 ? membershipData.serviceTypes : null,
       }])
       .select()
       .single()
@@ -380,23 +341,43 @@ export async function addMembershipForExistingClient(
 
     // Automatically create the first visit
     const firstVisit: Omit<Visit, "id" | "membershipId"> = {
-      clientId: clientId,
+      clientId: userId,
       date: new Date().toISOString().split("T")[0],
-      staffName: clientData.createdBy,
+      staffName: membershipData.createdBy,
       purchasedLocation: "Apalachee",
     }
     await addVisit(firstVisit)
   } catch (error) {
-    console.error('Error adding membership for existing client:', error)
+    console.error('Error adding membership for existing user:', error)
     throw error
   }
 }
 
-// Add a new client
-export async function addClient(clientData: Omit<Client, "id" | "created_at" | "memberships" | "membershipStatus" | "phone" | "createdAt">): Promise<void> {
+// Add a new membership (creates user if needed)
+export async function addMembership(membershipData: {
+  name: string
+  phoneNumber: string
+  zipCode: string
+  serviceTypes: string[]
+  createdBy: string
+  notes?: string
+  usesPhone?: boolean
+  optedIn?: boolean
+  agreedToTerms?: boolean
+  business?: string
+  emailAddress?: string | null
+}): Promise<void> {
   try {
-    // Check if user already exists by phone number (check both formatted and raw)
-    const userData = clientToSupabaseUser(clientData)
+    const userData = {
+      name: membershipData.name || null,
+      phoneNumber: membershipData.phoneNumber || null,
+      zipCode: membershipData.zipCode || "",
+      emailAddress: membershipData.emailAddress || null,
+      usesPhone: membershipData.usesPhone ?? true,
+      optedIn: membershipData.optedIn ?? false,
+      agreedToTerms: membershipData.agreedToTerms ?? false,
+      business: membershipData.business || "TallyBrowStudio",
+    }
     
     // First check by phone number directly in Supabase
     const { data: existingUser, error: checkError } = await supabase
@@ -407,10 +388,10 @@ export async function addClient(clientData: Omit<Client, "id" | "created_at" | "
 
     if (existingUser) {
       // User exists, just add a new membership
-      await addMembershipForExistingClient(existingUser.id, {
-        serviceTypes: clientData.serviceTypes,
-        notes: clientData.notes,
-        createdBy: clientData.createdBy,
+      await addMembershipForExistingUser(existingUser.id, {
+        serviceTypes: membershipData.serviceTypes,
+        notes: membershipData.notes,
+        createdBy: membershipData.createdBy,
       })
       return
     }
@@ -423,39 +404,21 @@ export async function addClient(clientData: Omit<Client, "id" | "created_at" | "
       .single()
 
     if (error) {
-      // If error is due to duplicate phone number, try to find existing user and add membership
-      // if (error.code === '23505' && (error.message?.includes('phoneNumber') || error.message?.includes('phone'))) {
-      //   console.log('Phone number already exists, finding user and adding membership...')
-      //   const { data: foundUser } = await supabase
-      //     .from('Users')
-      //     .select('id')
-      //     .eq('phoneNumber', userData.phoneNumber)
-      //     .maybeSingle()
-        
-      //   if (foundUser) {
-      //     await addMembershipForExistingClient(foundUser.id, {
-      //       serviceTypes: clientData.serviceTypes,
-      //       notes: clientData.notes,
-      //       createdBy: clientData.createdBy,
-      //     })
-      //     return
-      //   }
-      // }
-      console.error('Error adding client:', error)
+      console.error('Error adding user:', error)
       throw error
     }
 
     if (data) {
-      // Save metadata to localStorage (serviceTypes is stored in membership.services, not localStorage)
+      // Save metadata to localStorage
       saveClientMetadata(data.id, {
-        notes: clientData.notes,
-        createdBy: clientData.createdBy,
-        lastUpdatedBy: clientData.createdBy,
+        notes: membershipData.notes,
+        createdBy: membershipData.createdBy,
+        lastUpdatedBy: membershipData.createdBy,
         lastUpdatedAt: new Date().toISOString(),
         membershipStatus: "active",
       })
 
-      // Create membership for the new client
+      // Create membership for the new user
       const { data: newMembership, error: membershipError } = await supabase
         .from('Memberships')
         .insert([{
@@ -464,7 +427,7 @@ export async function addClient(clientData: Omit<Client, "id" | "created_at" | "
           totalVisits: 0,
           remainingVisits: 5,
           maxVisits: 5,
-          services: clientData.serviceTypes.length > 0 ? clientData.serviceTypes : null,
+          services: membershipData.serviceTypes.length > 0 ? membershipData.serviceTypes : null,
         }])
         .select()
         .single()
@@ -478,63 +441,31 @@ export async function addClient(clientData: Omit<Client, "id" | "created_at" | "
       const firstVisit: Omit<Visit, "id" | "membershipId"> = {
         clientId: data.id,
         date: new Date().toISOString().split("T")[0],
-        staffName: clientData.createdBy,
+        staffName: membershipData.createdBy,
         purchasedLocation: "Apalachee",
       }
       await addVisit(firstVisit)
     }
   } catch (error) {
-    console.error('Error adding client:', error)
+    console.error('Error adding membership:', error)
     throw error
   }
 }
 
-// Update a client
-export async function updateClient(id: string, clientData: Omit<Client, "id" | "created_at" | "memberships" | "phone" | "createdAt">): Promise<void> {
+// Update a membership's services
+export async function updateMembershipServices(membershipId: string, services: string[]): Promise<void> {
   try {
-    const userData = clientToSupabaseUser(clientData)
-    
     const { error } = await supabase
-      .from('Users')
-      .update(userData)
-      .eq('id', id)
+      .from('Memberships')
+      .update({ services: services.length > 0 ? services : null })
+      .eq('id', membershipId)
 
     if (error) {
-      console.error('Error updating client:', error)
+      console.error('Error updating membership services:', error)
       throw error
     }
-
-    // Update metadata (serviceTypes is stored in membership.services, not localStorage)
-    const existingMetadata = getClientMetadata(id)
-    saveClientMetadata(id, {
-      notes: clientData.notes !== undefined ? clientData.notes : existingMetadata.notes,
-      createdBy: existingMetadata.createdBy,
-      lastUpdatedBy: clientData.lastUpdatedBy || existingMetadata.lastUpdatedBy,
-      lastUpdatedAt: new Date().toISOString(),
-      membershipStatus: clientData.membershipStatus || existingMetadata.membershipStatus,
-    })
-    
-    // If serviceTypes are provided, update the active membership's services
-    if (clientData.serviceTypes && clientData.serviceTypes.length > 0) {
-      // Get the active membership for this client
-      const { data: activeMembership } = await supabase
-        .from('Memberships')
-        .select('id')
-        .eq('userId', id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      
-      if (activeMembership) {
-        await supabase
-          .from('Memberships')
-          .update({ services: clientData.serviceTypes })
-          .eq('id', activeMembership.id)
-      }
-    }
   } catch (error) {
-    console.error('Error updating client:', error)
+    console.error('Error updating membership services:', error)
     throw error
   }
 }
@@ -753,11 +684,17 @@ export async function addVisit(visitData: Omit<Visit, "id" | "membershipId">): P
       maxVisits,
     })
 
-    // Update client metadata
-    const client = await getClientById(visitData.clientId)
-    if (client) {
-      const existingMetadata = getClientMetadata(client.id)
-      saveClientMetadata(client.id, {
+    // Update user metadata
+    // Get the membership to find the userId
+    const { data: membershipData } = await supabase
+      .from('Memberships')
+      .select('userId')
+      .eq('id', membershipId)
+      .single()
+    
+    if (membershipData) {
+      const existingMetadata = getClientMetadata(membershipData.userId)
+      saveClientMetadata(membershipData.userId, {
         ...existingMetadata,
         lastUpdatedBy: visitData.staffName,
         lastUpdatedAt: new Date().toISOString(),

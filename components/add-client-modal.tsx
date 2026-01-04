@@ -9,16 +9,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { addClient, STAFF_OPTIONS, getClientsByPhone, getServices } from "@/lib/data"
+import { addMembership, STAFF_OPTIONS, getMembershipsByPhone, getServices } from "@/lib/data"
 import { Search } from "lucide-react"
 
-interface AddClientModalProps {
+interface AddMembershipModalProps {
   isOpen: boolean
   onClose: () => void
-  onClientAdded: () => void
+  onMembershipAdded: () => void
 }
 
-export function AddClientModal({ isOpen, onClose, onClientAdded }: AddClientModalProps) {
+export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMembershipModalProps) {
   const [step, setStep] = useState<"search" | "new" | "existing">("search")
   const [searchPhone, setSearchPhone] = useState("")
   const [existingClient, setExistingClient] = useState<{ name: string; phone: string; zipCode: string } | null>(null)
@@ -102,21 +102,21 @@ export function AddClientModal({ isOpen, onClose, onClientAdded }: AddClientModa
 
   const handlePhoneSearch = async () => {
     const formattedPhone = formatPhoneNumber(searchPhone)
-    const existingClients = await getClientsByPhone(formattedPhone)
+    const existingMemberships = await getMembershipsByPhone(formattedPhone)
 
-    if (existingClients.length > 0) {
-      // Phone exists, use existing client info
-      const client = existingClients[0]
-      setExistingClient({ name: client.name, phone: client.phone, zipCode: client.zipCode })
+    if (existingMemberships.length > 0) {
+      // Phone exists, use existing user info
+      const membership = existingMemberships[0]
+      setExistingClient({ name: membership.user.name, phone: membership.phone, zipCode: membership.user.zipCode })
       setFormData((prev) => ({
         ...prev,
-        name: client.name,
-        phone: client.phone,
-        zipCode: client.zipCode,
+        name: membership.user.name,
+        phone: membership.phone,
+        zipCode: membership.user.zipCode,
       }))
       setStep("existing")
     } else {
-      // New client
+      // New user
       setFormData((prev) => ({ ...prev, phone: formattedPhone }))
       setStep("new")
     }
@@ -137,8 +137,8 @@ export function AddClientModal({ isOpen, onClose, onClientAdded }: AddClientModa
     }
 
     try {
-      // Format the data to match Client interface
-      await addClient({
+      // Format the data to match Membership interface
+      await addMembership({
         name: formData.name,
         phoneNumber: formData.phone,
         zipCode: formData.zipCode,
@@ -151,11 +151,11 @@ export function AddClientModal({ isOpen, onClose, onClientAdded }: AddClientModa
         business: "TallyBrowStudio",
         emailAddress: null,
       })
-      onClientAdded()
+      onMembershipAdded()
       onClose()
     } catch (error) {
-      console.error("Error adding client:", error)
-      alert("Failed to add client. Please try again.")
+      console.error("Error adding membership:", error)
+      alert("Failed to add membership. Please try again.")
     }
   }
 
