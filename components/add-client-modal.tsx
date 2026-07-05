@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { addMembership, STAFF_OPTIONS, getMembershipsByPhone, getServices } from "@/lib/data"
+import { addMembership, STAFF_OPTIONS, LOCATION_OPTIONS, getUserByPhone, getServices, formatPhoneNumberForDisplay } from "@/lib/data"
 import { Search } from "lucide-react"
 
 interface AddMembershipModalProps {
@@ -23,7 +22,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
   const [searchPhone, setSearchPhone] = useState("")
   const [existingClient, setExistingClient] = useState<{ name: string; phone: string; zipCode: string } | null>(null)
   const [servicesByCategory, setServicesByCategory] = useState<Record<string, string[]>>({})
-  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set())
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [loadingServices, setLoadingServices] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -32,6 +31,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
     zipCode: "",
     serviceTypes: [] as string[],
     createdBy: "",
+    location: "",
     notes: "",
   })
 
@@ -60,8 +60,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
             sorted[category] = grouped[category].sort()
           })
         setServicesByCategory(sorted)
-        // Keep all categories closed initially
-        setOpenCategories(new Set())
+        setActiveCategory(null)
       } catch (error) {
         console.error("Error loading services:", error)
         setServicesByCategory({})
@@ -84,6 +83,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         zipCode: "",
         serviceTypes: [],
         createdBy: "",
+        location: "",
         notes: "",
       })
     }
@@ -101,18 +101,27 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
   }
 
   const handlePhoneSearch = async () => {
+    // Clean phone number (remove formatting) before searching
+    const cleanedPhone = searchPhone.replace(/[^\d]/g, "")
     const formattedPhone = formatPhoneNumber(searchPhone)
-    const existingMemberships = await getMembershipsByPhone(formattedPhone)
+    
+    // Search ALL users (not just those with memberships)
+    const existingUser = await getUserByPhone(cleanedPhone)
 
-    if (existingMemberships.length > 0) {
-      // Phone exists, use existing user info
-      const membership = existingMemberships[0]
-      setExistingClient({ name: membership.user.name, phone: membership.phone, zipCode: membership.user.zipCode })
+    if (existingUser) {
+      // User exists, use existing user info
+      // Format phone for display
+      const displayPhone = formattedPhone || formatPhoneNumberForDisplay(existingUser.phoneNumber)
+      setExistingClient({ 
+        name: existingUser.name, 
+        phone: displayPhone, 
+        zipCode: existingUser.zipCode 
+      })
       setFormData((prev) => ({
         ...prev,
-        name: membership.user.name,
-        phone: membership.phone,
-        zipCode: membership.user.zipCode,
+        name: existingUser.name,
+        phone: displayPhone,
+        zipCode: existingUser.zipCode,
       }))
       setStep("existing")
     } else {
@@ -130,6 +139,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
       !formData.phone.trim() ||
       !formData.zipCode.trim() ||
       !formData.createdBy.trim() ||
+      !formData.location.trim() ||
       formData.serviceTypes.length === 0
     ) {
       alert("Please fill in all required fields")
@@ -144,6 +154,8 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         zipCode: formData.zipCode,
         serviceTypes: formData.serviceTypes,
         createdBy: formData.createdBy,
+        assignedTo: formData.createdBy,
+        location: formData.location,
         notes: formData.notes,
         usesPhone: true,
         optedIn: false,
@@ -172,18 +184,6 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         serviceTypes: prev.serviceTypes.filter((type) => type !== serviceKey),
       }))
     }
-  }
-
-  const toggleCategory = (category: string) => {
-    setOpenCategories((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(category)) {
-        newSet.delete(category)
-      } else {
-        newSet.add(category)
-      }
-      return newSet
-    })
   }
 
   return (
@@ -287,42 +287,63 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
               ) : Object.keys(servicesByCategory).length === 0 ? (
                 <div className="text-sm text-gray-500 p-3">No services available</div>
               ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
-                  {Object.entries(servicesByCategory).map(([category, services]) => (
-                    <div key={category} className="border-b last:border-b-0 pb-2 last:pb-0">
-                      <button
-                        type="button"
-                        onClick={() => toggleCategory(category)}
-                        className="w-full flex items-center justify-between py-2 px-2 hover:bg-gray-50 rounded-md transition-colors"
-                      >
-                        <span className="font-medium text-sm text-gray-900">{category}</span>
-                        <span className="text-xs text-gray-500">
-                          {openCategories.has(category) ? "▼" : "▶"}
-                        </span>
-                      </button>
-                      {openCategories.has(category) && (
-                        <div className="grid grid-cols-2 gap-2 mt-2 pl-2">
-                          {services.map((service) => {
-                            const serviceKey = `${category} - ${service}`
-                            return (
-                              <div key={serviceKey} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={serviceKey}
-                                  checked={formData.serviceTypes.includes(serviceKey)}
-                                  onCheckedChange={(checked) =>
-                                    handleServiceTypeChange(category, service, checked as boolean)
-                                  }
-                                />
-                                <Label htmlFor={serviceKey} className="text-sm cursor-pointer">
-                                  {service}
-                                </Label>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                <div className="border rounded-md overflow-hidden">
+                  {activeCategory && (
+                    <div className="bg-gray-50 border-b p-3">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">{activeCategory}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {servicesByCategory[activeCategory].map((service) => {
+                          const serviceKey = `${activeCategory} - ${service}`
+                          const isSelected = formData.serviceTypes.includes(serviceKey)
+                          return (
+                            <button
+                              key={serviceKey}
+                              type="button"
+                              aria-pressed={isSelected}
+                              onClick={() => handleServiceTypeChange(activeCategory, service, !isSelected)}
+                              className={`min-h-[52px] px-4 py-2 rounded-lg border-2 text-base font-medium transition-colors ${
+                                isSelected
+                                  ? "bg-blue-50 border-blue-500 text-blue-900"
+                                  : "bg-white border-gray-200 text-gray-700 hover:border-gray-400"
+                              }`}
+                            >
+                              {service}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
-                  ))}
+                  )}
+                  <div className="divide-y max-h-[40vh] overflow-y-auto">
+                    {Object.entries(servicesByCategory).map(([category, services]) => {
+                      const selectedCount = services.filter((s) =>
+                        formData.serviceTypes.includes(`${category} - ${s}`)
+                      ).length
+                      const isActive = activeCategory === category
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setActiveCategory(isActive ? null : category)}
+                          className={`w-full flex items-center justify-between min-h-[56px] px-4 py-3 text-left transition-colors ${
+                            isActive ? "bg-blue-50" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className={`text-base font-medium ${isActive ? "text-blue-900" : "text-gray-900"}`}>
+                            {category}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {selectedCount > 0 && (
+                              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                {selectedCount}
+                              </span>
+                            )}
+                            <span className="text-gray-400 text-sm">{isActive ? "▼" : "▶"}</span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -340,6 +361,25 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                   {STAFF_OPTIONS.map((staff) => (
                     <SelectItem key={staff} value={staff}>
                       {staff}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location *</Label>
+              <Select
+                value={formData.location}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, location: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATION_OPTIONS.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
                     </SelectItem>
                   ))}
                 </SelectContent>

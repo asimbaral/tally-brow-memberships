@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddVisitModal } from "./add-visit-modal"
 import { type Membership, getVisitsByMembershipId } from "@/lib/data"
+import { formatLocalDate } from "@/lib/utils"
 
 interface MembershipListProps {
   memberships: Membership[]
@@ -15,7 +16,7 @@ interface MembershipListProps {
 
 interface MembershipStats {
   totalVisits: number
-  lastVisit: Date | null
+  lastVisit: string | null
 }
 
 export function MembershipList({ memberships, onMembershipUpdate }: MembershipListProps) {
@@ -33,8 +34,8 @@ export function MembershipList({ memberships, onMembershipUpdate }: MembershipLi
         const visits = await getVisitsByMembershipId(membership.id)
         
         const totalVisits = visits.length
-        const lastVisit = visits.length > 0 
-          ? new Date(Math.max(...visits.map((v) => new Date(v.date).getTime()))) 
+        const lastVisit = visits.length > 0
+          ? visits.map((v) => v.date).sort().at(-1)!
           : null
 
         stats[membership.id] = {
@@ -139,7 +140,7 @@ export function MembershipList({ memberships, onMembershipUpdate }: MembershipLi
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar className="h-4 w-4" />
-                        {lastVisit ? lastVisit.toLocaleDateString() : "Never"}
+                        {lastVisit ? formatLocalDate(lastVisit) : "Never"}
                       </div>
                     </td>
                     <td className="py-4 px-6">

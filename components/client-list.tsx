@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddVisitModal } from "./add-visit-modal"
 import { type Client, getVisitsByClientId, getMembershipStatus } from "@/lib/data"
+import { formatLocalDate } from "@/lib/utils"
 
 interface ClientListProps {
   clients: Client[]
@@ -15,7 +16,7 @@ interface ClientListProps {
 
 interface ClientStats {
   totalVisits: number
-  lastVisit: Date | null
+  lastVisit: string | null
   membershipInfo: {
     status: "active" | "expired"
     remainingVisits: number
@@ -41,8 +42,8 @@ export function ClientList({ clients, onClientUpdate }: ClientListProps) {
         ])
         
         const totalVisits = visits.length
-        const lastVisit = visits.length > 0 
-          ? new Date(Math.max(...visits.map((v) => new Date(v.date).getTime()))) 
+        const lastVisit = visits.length > 0
+          ? visits.map((v) => v.date).sort().at(-1)!
           : null
 
         stats[client.id] = {
@@ -152,7 +153,7 @@ export function ClientList({ clients, onClientUpdate }: ClientListProps) {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar className="h-4 w-4" />
-                        {lastVisit ? lastVisit.toLocaleDateString() : "Never"}
+                        {lastVisit ? formatLocalDate(lastVisit) : "Never"}
                       </div>
                     </td>
                     <td className="py-4 px-6">

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { addVisit, STAFF_OPTIONS, getMembershipStatus, LOCATION_OPTIONS } from "@/lib/data"
+import { getLocalDateString } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +19,7 @@ interface AddVisitModalProps {
 
 export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVisitModalProps) {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: getLocalDateString(),
     staffName: "",
     purchasedLocation: "",
   })
@@ -54,7 +55,7 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVi
     }
 
     if (willExpire) {
-      const confirmed = confirm("This will be the client's 5th visit and their membership will expire. Continue?")
+      const confirmed = confirm("This will be the client's 6th visit and their membership will expire. Continue?")
       if (!confirmed) return
     }
 
@@ -67,7 +68,7 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVi
       })
 
       setFormData({
-        date: new Date().toISOString().split("T")[0],
+        date: getLocalDateString(),
         staffName: "",
         purchasedLocation: "",
       })
@@ -92,7 +93,7 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVi
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
               <div className="flex">
                 <div className="text-yellow-800 text-sm">
-                  <strong>Warning:</strong> This will be the client's 5th visit and their membership will expire.
+                  <strong>Warning:</strong> This will be the client's 6th visit and their membership will expire.
                 </div>
               </div>
             </div>

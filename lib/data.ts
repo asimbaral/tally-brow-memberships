@@ -1,6 +1,7 @@
 "use client"
 
 import { supabase, type SupabaseUser, type SupabaseService, type SupabaseVisit, type SupabaseMembership } from './supabase'
+import { getLocalDateString } from './utils'
 
 // User/Client information (simplified, no longer a separate entity)
 export interface UserInfo {
@@ -30,6 +31,7 @@ export interface Membership {
   totalVisits: number
   remainingVisits: number
   services: string[] | null
+  assignedTo: string | null
   // User/Client information as an attribute of membership
   user: UserInfo
   // Computed properties for backward compatibility
@@ -56,7 +58,7 @@ export const STAFF_OPTIONS = [
   "Bishnu",
 ]
 
-export const LOCATION_OPTIONS = ["Apalachee", "Tennessee", "Thomasville"]
+export const LOCATION_OPTIONS = ["Apalachee Pkwy", "Tennessee St", "Thomasville Rd"]
 
 // Helper to get metadata from localStorage (for fields not in Users or Memberships tables)
 // serviceTypes is now stored in membership.services, not localStorage
@@ -143,30 +145,103 @@ function userInfoToSupabaseUser(userInfo: Partial<UserInfo>): Partial<SupabaseUs
   }
 }
 
-// Get all memberships from Supabase (returns one entry per membership)
+// Pagination result type
+export interface PaginatedMemberships {
+  memberships: Membership[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+// Get memberships from Supabase with pagination and optional search
 // If a user has multiple memberships, they will appear multiple times in the list
-export async function getMemberships(): Promise<Membership[]> {
+export async function getMemberships(options?: {
+  page?: number
+  pageSize?: number
+  searchTerm?: string
+  serviceFilter?: string
+  statusFilter?: string
+}): Promise<PaginatedMemberships> {
   try {
-    // Query from Memberships and join with Users
-    // This gives us one row per membership
-    const { data, error } = await supabase
+    const page = options?.page || 1
+    const pageSize = options?.pageSize || 50
+    const searchTerm = options?.searchTerm?.toLowerCase().trim() || ""
+    const serviceFilter = options?.serviceFilter?.trim() || ""
+    const statusFilter = options?.statusFilter?.trim() || ""
+
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    // Build the base query
+    let query = supabase
       .from('Memberships')
       .select(`
-        id,
-        status,
-        "totalVisits",
-        "remainingVisits",
-        "maxVisits",
-        created_at,
-        updated_at,
-        services,
+        *,
         user:Users!inner(*)
-      `)
+      `, { count: 'exact' })
+
+    // Apply search filter if provided
+    if (searchTerm) {
+      const searchPattern = `%${searchTerm}%`
+      const cleanedSearchTerm = searchTerm.replace(/[^\d]/g, "")
+
+      const { data: matchingUsers, error: userError } = await supabase
+        .from('Users')
+        .select('id')
+        .or(`name.ilike.${searchPattern},phoneNumber.ilike.%${cleanedSearchTerm}%`)
+
+      if (userError) {
+        console.error('Error searching users:', userError)
+        return {
+          memberships: [],
+          total: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+        }
+      }
+
+      if (!matchingUsers || matchingUsers.length === 0) {
+        return {
+          memberships: [],
+          total: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+        }
+      }
+
+      const userIds = matchingUsers.map(u => u.id)
+      query = query.in('userId', userIds)
+    }
+
+    // Apply service filter (case-preserved to match stored values)
+    if (serviceFilter && serviceFilter !== "all") {
+      query = query.contains('services', [serviceFilter])
+    }
+
+    // Apply status filter
+    if (statusFilter && statusFilter !== "all") {
+      query = query.eq('status', statusFilter)
+    }
+
+    // Apply ordering and pagination
+    query = query
       .order('created_at', { ascending: false })
+      .range(from, to)
+
+    const { data, error, count } = await query
 
     if (error) {
       console.error('Error fetching memberships:', error)
-      return []
+      return {
+        memberships: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 0,
+      }
     }
 
     // Transform each membership+user combination into a Membership
@@ -188,18 +263,63 @@ export async function getMemberships(): Promise<Membership[]> {
         totalVisits: membershipData.totalVisits,
         remainingVisits: membershipData.remainingVisits,
         services: membershipData.services || null,
+        assignedTo: (membershipData as any).assignedTo || null,
         user: userInfo,
         // Computed properties
-        phone: user.phoneNumber || "",
+        phone: formatPhoneNumberForDisplay(user.phoneNumber),
         serviceTypes: services,
       }
-      
+
       memberships.push(membership)
     }
 
-    return memberships
+    const total = count || 0
+    const totalPages = Math.ceil(total / pageSize)
+
+    return {
+      memberships,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    }
   } catch (error) {
     console.error('Error fetching memberships:', error)
+    return {
+      memberships: [],
+      total: 0,
+      page: 1,
+      pageSize: options?.pageSize || 50,
+      totalPages: 0,
+    }
+  }
+}
+
+// Get all service types for filtering (across all memberships)
+export async function getAllServiceTypes(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('Memberships')
+      .select('services')
+
+    if (error) {
+      console.error('Error fetching service types:', error)
+      return []
+    }
+
+    // Extract all unique service types from all memberships
+    const allServices = new Set<string>()
+    for (const membership of data || []) {
+      if (membership.services && Array.isArray(membership.services)) {
+        membership.services.forEach((service: string) => {
+          if (service) allServices.add(service)
+        })
+      }
+    }
+
+    return Array.from(allServices).sort()
+  } catch (error) {
+    console.error('Error fetching service types:', error)
     return []
   }
 }
@@ -238,6 +358,7 @@ export async function getMembershipById(membershipId: string): Promise<Membershi
       totalVisits: data.totalVisits,
       remainingVisits: data.remainingVisits,
       services: data.services || null,
+      assignedTo: (data as any).assignedTo || null,
       user: userInfo,
       // Computed properties
       phone: user.phoneNumber || "",
@@ -249,9 +370,41 @@ export async function getMembershipById(membershipId: string): Promise<Membershi
   }
 }
 
+// Get user by phone number (searches all users, not just those with memberships)
+export async function getUserByPhone(phone: string): Promise<UserInfo | null> {
+  try {
+    // Clean phone number before searching
+    const cleanedPhone = cleanPhoneNumber(phone)
+    if (!cleanedPhone) return null
+    
+    // Query Users table directly
+    const { data, error } = await supabase
+      .from('Users')
+      .select('*')
+      .eq('phoneNumber', cleanedPhone)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Error fetching user by phone:', error)
+      return null
+    }
+
+    if (!data) return null
+
+    return supabaseUserToUserInfo(data)
+  } catch (error) {
+    console.error('Error fetching user by phone:', error)
+    return null
+  }
+}
+
 // Get memberships by phone number
 export async function getMembershipsByPhone(phone: string): Promise<Membership[]> {
   try {
+    // Clean phone number before searching
+    const cleanedPhone = cleanPhoneNumber(phone)
+    if (!cleanedPhone) return []
+    
     // Query Memberships and join with Users
     const { data, error } = await supabase
       .from('Memberships')
@@ -259,7 +412,7 @@ export async function getMembershipsByPhone(phone: string): Promise<Membership[]
         *,
         user:Users!inner(*)
       `)
-      .eq('user.phoneNumber', phone)
+      .eq('user.phoneNumber', cleanedPhone)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -285,12 +438,13 @@ export async function getMembershipsByPhone(phone: string): Promise<Membership[]
         totalVisits: membershipData.totalVisits,
         remainingVisits: membershipData.remainingVisits,
         services: membershipData.services || null,
+        assignedTo: (membershipData as any).assignedTo || null,
         user: userInfo,
         // Computed properties
-        phone: user.phoneNumber || "",
+        phone: formatPhoneNumberForDisplay(user.phoneNumber),
         serviceTypes: services,
       }
-      
+
       memberships.push(membership)
     }
 
@@ -308,6 +462,8 @@ export async function addMembershipForExistingUser(
     serviceTypes: string[]
     notes?: string
     createdBy: string
+    location: string
+    assignedTo?: string
   }
 ): Promise<void> {
   try {
@@ -327,9 +483,10 @@ export async function addMembershipForExistingUser(
         userId: userId,
         status: "active",
         totalVisits: 0,
-        remainingVisits: 5,
-        maxVisits: 5,
+        remainingVisits: 6,
+        maxVisits: 6,
         services: membershipData.serviceTypes.length > 0 ? membershipData.serviceTypes : null,
+        assignedTo: membershipData.assignedTo || null,
       }])
       .select()
       .single()
@@ -342,15 +499,32 @@ export async function addMembershipForExistingUser(
     // Automatically create the first visit
     const firstVisit: Omit<Visit, "id" | "membershipId"> = {
       clientId: userId,
-      date: new Date().toISOString().split("T")[0],
+      date: getLocalDateString(),
       staffName: membershipData.createdBy,
-      purchasedLocation: "Apalachee",
+      purchasedLocation: membershipData.location,
     }
     await addVisit(firstVisit)
   } catch (error) {
     console.error('Error adding membership for existing user:', error)
     throw error
   }
+}
+
+// Helper function to clean phone number (remove dashes, parentheses, spaces)
+function cleanPhoneNumber(phone: string | null): string | null {
+  if (!phone) return null
+  // Remove all non-digit characters
+  return phone.replace(/[^\d]/g, "")
+}
+
+// Helper function to format phone number for display (adds formatting)
+export function formatPhoneNumberForDisplay(phone: string | null): string {
+  if (!phone) return ""
+  const cleaned = phone.replace(/[^\d]/g, "")
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
+  }
+  return phone // Return as-is if not 10 digits
 }
 
 // Add a new membership (creates user if needed)
@@ -360,6 +534,8 @@ export async function addMembership(membershipData: {
   zipCode: string
   serviceTypes: string[]
   createdBy: string
+  location: string
+  assignedTo?: string
   notes?: string
   usesPhone?: boolean
   optedIn?: boolean
@@ -368,9 +544,12 @@ export async function addMembership(membershipData: {
   emailAddress?: string | null
 }): Promise<void> {
   try {
+    // Clean phone number before saving (remove formatting)
+    const cleanedPhoneNumber = cleanPhoneNumber(membershipData.phoneNumber)
+    
     const userData = {
       name: membershipData.name || null,
-      phoneNumber: membershipData.phoneNumber || null,
+      phoneNumber: cleanedPhoneNumber,
       zipCode: membershipData.zipCode || "",
       emailAddress: membershipData.emailAddress || null,
       usesPhone: membershipData.usesPhone ?? true,
@@ -379,12 +558,15 @@ export async function addMembership(membershipData: {
       business: membershipData.business || "TallyBrowStudio",
     }
     
-    // First check by phone number directly in Supabase
+    // First check by phone number directly in Supabase (using cleaned phone number)
     const { data: existingUser, error: checkError } = await supabase
       .from('Users')
       .select('id')
-      .eq('phoneNumber', userData.phoneNumber)
+      .eq('phoneNumber', cleanedPhoneNumber)
       .maybeSingle()
+
+      console.log('existingUser', existingUser);
+      console.log('checkError', checkError);
 
     if (existingUser) {
       // User exists, just add a new membership
@@ -392,6 +574,8 @@ export async function addMembership(membershipData: {
         serviceTypes: membershipData.serviceTypes,
         notes: membershipData.notes,
         createdBy: membershipData.createdBy,
+        location: membershipData.location,
+        assignedTo: membershipData.assignedTo,
       })
       return
     }
@@ -425,9 +609,10 @@ export async function addMembership(membershipData: {
           userId: data.id,
           status: "active",
           totalVisits: 0,
-          remainingVisits: 5,
-          maxVisits: 5,
+          remainingVisits: 6,
+          maxVisits: 6,
           services: membershipData.serviceTypes.length > 0 ? membershipData.serviceTypes : null,
+          assignedTo: membershipData.assignedTo || null,
         }])
         .select()
         .single()
@@ -440,9 +625,9 @@ export async function addMembership(membershipData: {
       // Automatically create the first visit
       const firstVisit: Omit<Visit, "id" | "membershipId"> = {
         clientId: data.id,
-        date: new Date().toISOString().split("T")[0],
+        date: getLocalDateString(),
         staffName: membershipData.createdBy,
-        purchasedLocation: "Apalachee",
+        purchasedLocation: membershipData.location,
       }
       await addVisit(firstVisit)
     }
@@ -494,8 +679,8 @@ async function getOrCreateActiveMembership(clientId: string): Promise<string> {
         userId: clientId,
         status: 'active',
         totalVisits: 0,
-        remainingVisits: 5,
-        maxVisits: 5,
+        remainingVisits: 6,
+        maxVisits: 6,
       }])
       .select('id')
       .single()
@@ -672,7 +857,7 @@ export async function addVisit(visitData: Omit<Visit, "id" | "membershipId">): P
     }
 
     const totalVisits = membershipVisits?.length || 0
-    const maxVisits = 5
+    const maxVisits = 6
     const remainingVisits = Math.max(0, maxVisits - totalVisits)
     const membershipStatus = totalVisits >= maxVisits ? "expired" : "active"
 
@@ -756,16 +941,16 @@ export async function getMembershipStatus(clientId: string): Promise<{
     // This should rarely happen - memberships should be created when clients/visits are added
     const visits = await getVisitsByClientId(clientId)
     const totalVisits = visits.length
-    const remainingVisits = Math.max(0, 5 - totalVisits)
-    const status = totalVisits >= 5 ? "expired" : "active"
+    const remainingVisits = Math.max(0, 6 - totalVisits)
+    const status = totalVisits >= 6 ? "expired" : "active"
     return { status, remainingVisits, totalVisits }
   } catch (error) {
     console.error('Error getting membership status:', error)
     // Fallback - calculate from visits
     const visits = await getVisitsByClientId(clientId)
     const totalVisits = visits.length
-    const remainingVisits = Math.max(0, 5 - totalVisits)
-    const status = totalVisits >= 5 ? "expired" : "active"
+    const remainingVisits = Math.max(0, 6 - totalVisits)
+    const status = totalVisits >= 6 ? "expired" : "active"
     return { status, remainingVisits, totalVisits }
   }
 }

@@ -48,5 +48,6 @@ export interface SupabaseMembership {
   created_at: string
   updated_at: string
   services: string[] | null
+  assignedTo: string | null
 }
 

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddVisitModal } from "@/components/add-visit-modal"
 import { type Visit, type Membership, getMembershipById, getVisitsByMembershipId } from "@/lib/data"
+import { formatLocalDate } from "@/lib/utils"
 
 export default function MembershipProfilePage() {
   const params = useParams()
@@ -207,7 +208,7 @@ export default function MembershipProfilePage() {
                       <tbody>
                         {sortedVisits.map((visit) => (
                           <tr key={visit.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm">{new Date(visit.date).toLocaleDateString()}</td>
+                            <td className="py-3 px-4 text-sm">{formatLocalDate(visit.date)}</td>
                             <td className="py-3 px-4 text-sm font-medium">{visit.staffName}</td>
                             <td className="py-3 px-4 text-sm">{visit.purchasedLocation}</td>
                           </tr>
