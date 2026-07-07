@@ -55,7 +55,88 @@ export function MembershipList({ memberships, onMembershipUpdate, emptyMessage }
 
   return (
     <>
-      <div className="overflow-x-auto">
+      {/* Mobile card layout */}
+      <div className="divide-y divide-gray-200 md:hidden">
+        {memberships.map((membership) => {
+          const lastVisit = lastVisits[membership.id]
+          const isActive = membership.status === "active"
+          const usedFraction = membership.maxVisits > 0 ? membership.totalVisits / membership.maxVisits : 0
+
+          return (
+            <div
+              key={membership.id}
+              className="p-4 hover:bg-gray-50 cursor-pointer"
+              onClick={() => router.push(`/client/${membership.id}`)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-900 truncate">{membership.user.name}</div>
+                  <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-600">
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{membership.phone}</span>
+                  </div>
+                </div>
+                <Badge variant={isActive ? "default" : "destructive"} className="text-xs shrink-0">
+                  {isActive ? "Active" : "Expired"}
+                </Badge>
+              </div>
+
+              {membership.serviceTypes.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {membership.serviceTypes.map((service) => (
+                    <Badge key={service} variant="secondary" className="text-xs">
+                      {service}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-col gap-1.5">
+                <span className="text-xs text-gray-500">
+                  {membership.totalVisits}/{membership.maxVisits} visits
+                </span>
+                <div className="h-1.5 w-full rounded-full bg-gray-200">
+                  <div
+                    className={`h-1.5 rounded-full ${isActive ? "bg-blue-500" : "bg-red-400"}`}
+                    style={{ width: `${Math.min(100, usedFraction * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-1.5 text-sm text-gray-600">
+                <Calendar className="h-3.5 w-3.5 shrink-0" />
+                Last visit: {!visitsLoaded ? "…" : lastVisit ? formatLocalDate(lastVisit) : "Never"}
+              </div>
+
+              <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/client/${membership.id}`)}
+                  className="flex flex-1 items-center justify-center gap-1"
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddingVisitMembership(membership)}
+                  className="flex flex-1 items-center justify-center gap-1"
+                  disabled={!isActive}
+                  title={!isActive ? "This membership has expired" : undefined}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Visit
+                </Button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
