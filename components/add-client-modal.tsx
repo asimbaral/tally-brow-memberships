@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { addMembership, STAFF_OPTIONS, LOCATION_OPTIONS, getUserByPhone, getServices, formatPhoneNumberForDisplay } from "@/lib/data"
 import { Search } from "lucide-react"
+import { toast } from "sonner"
 
 interface AddMembershipModalProps {
   isOpen: boolean
@@ -24,6 +25,8 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
   const [servicesByCategory, setServicesByCategory] = useState<Record<string, string[]>>({})
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [loadingServices, setLoadingServices] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -101,12 +104,14 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
   }
 
   const handlePhoneSearch = async () => {
+    if (searching) return
     // Clean phone number (remove formatting) before searching
     const cleanedPhone = searchPhone.replace(/[^\d]/g, "")
     const formattedPhone = formatPhoneNumber(searchPhone)
-    
+
+    setSearching(true)
     // Search ALL users (not just those with memberships)
-    const existingUser = await getUserByPhone(cleanedPhone)
+    const existingUser = await getUserByPhone(cleanedPhone).finally(() => setSearching(false))
 
     if (existingUser) {
       // User exists, use existing user info
@@ -131,21 +136,20 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
     }
   }
 
+  const missingFields = [
+    !formData.name.trim() && "name",
+    !formData.phone.trim() && "phone",
+    !formData.zipCode.trim() && "zip code",
+    formData.serviceTypes.length === 0 && "at least one service",
+    !formData.createdBy.trim() && "created by",
+    !formData.location.trim() && "location",
+  ].filter(Boolean) as string[]
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitting || missingFields.length > 0) return
 
-    if (
-      !formData.name.trim() ||
-      !formData.phone.trim() ||
-      !formData.zipCode.trim() ||
-      !formData.createdBy.trim() ||
-      !formData.location.trim() ||
-      formData.serviceTypes.length === 0
-    ) {
-      alert("Please fill in all required fields")
-      return
-    }
-
+    setSubmitting(true)
     try {
       // Format the data to match Membership interface
       await addMembership({
@@ -163,11 +167,14 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         business: "TallyBrowStudio",
         emailAddress: null,
       })
+      toast.success(`Membership added for ${formData.name}`)
       onMembershipAdded()
       onClose()
     } catch (error) {
       console.error("Error adding membership:", error)
-      alert("Failed to add membership. Please try again.")
+      toast.error("Failed to add membership. Please try again.")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -210,8 +217,9 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                     }
                   }}
                 />
-                <Button onClick={handlePhoneSearch} disabled={searchPhone.length < 10}>
+                <Button onClick={handlePhoneSearch} disabled={searchPhone.replace(/[^\d]/g, "").length < 10 || searching}>
                   <Search className="h-4 w-4" />
+                  {searching ? "Searching…" : "Search"}
                 </Button>
               </div>
               <p className="text-sm text-gray-500">Enter phone number to check if client exists</p>
@@ -397,19 +405,29 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setStep("search")
-                  setSearchPhone("")
-                  setExistingClient(null)
-                }}
-              >
-                Back
-              </Button>
-              <Button type="submit">Add Client</Button>
+            <div className="space-y-2 pt-4">
+              {missingFields.length > 0 && (
+                <p className="text-xs text-gray-500 text-right">
+                  Still needed: {missingFields.join(", ")}
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={submitting}
+                  onClick={() => {
+                    setStep("search")
+                    setSearchPhone("")
+                    setExistingClient(null)
+                  }}
+                >
+                  Back
+                </Button>
+                <Button type="submit" disabled={submitting || missingFields.length > 0}>
+                  {submitting ? "Adding…" : "Add Membership"}
+                </Button>
+              </div>
             </div>
           </form>
         )}

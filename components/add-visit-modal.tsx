@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-import { addVisit, STAFF_OPTIONS, getMembershipStatus, LOCATION_OPTIONS } from "@/lib/data"
+import { addVisit, STAFF_OPTIONS, LOCATION_OPTIONS, type Membership } from "@/lib/data"
 import { getLocalDateString } from "@/lib/utils"
 import { useState, useEffect } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,70 +15,58 @@ interface AddVisitModalProps {
   isOpen: boolean
   onClose: () => void
   onVisitAdded: () => void
-  clientId: string
+  membership: Membership
 }
 
-export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVisitModalProps) {
+export function AddVisitModal({ isOpen, onClose, onVisitAdded, membership }: AddVisitModalProps) {
   const [formData, setFormData] = useState({
     date: getLocalDateString(),
     staffName: "",
     purchasedLocation: "",
   })
-  const [membershipInfo, setMembershipInfo] = useState<{
-    status: "active" | "expired"
-    remainingVisits: number
-    totalVisits: number
-  } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    const loadMembershipInfo = async () => {
-      if (isOpen && clientId) {
-        const info = await getMembershipStatus(clientId)
-        setMembershipInfo(info)
-      }
-    }
-    loadMembershipInfo()
-  }, [isOpen, clientId])
-
-  const willExpire = membershipInfo?.remainingVisits === 1
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.staffName.trim()) {
-      alert("Please select a staff member")
-      return
-    }
-
-    if (!formData.purchasedLocation.trim()) {
-      alert("Please select a purchased location")
-      return
-    }
-
-    if (willExpire) {
-      const confirmed = confirm("This will be the client's 6th visit and their membership will expire. Continue?")
-      if (!confirmed) return
-    }
-
-    try {
-      await addVisit({
-        clientId,
-        date: formData.date,
-        staffName: formData.staffName,
-        purchasedLocation: formData.purchasedLocation,
-      })
-
+    if (isOpen) {
       setFormData({
         date: getLocalDateString(),
         staffName: "",
         purchasedLocation: "",
       })
+    }
+  }, [isOpen])
 
+  const willExpire = membership.remainingVisits === 1
+  const canSubmit = formData.date && formData.staffName && formData.purchasedLocation && !submitting
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSubmit) return
+
+    if (willExpire) {
+      const confirmed = confirm(
+        `This will be ${membership.user.name}'s final visit (${membership.maxVisits} of ${membership.maxVisits}) and their membership will expire. Continue?`
+      )
+      if (!confirmed) return
+    }
+
+    setSubmitting(true)
+    try {
+      await addVisit({
+        membershipId: membership.id,
+        date: formData.date,
+        staffName: formData.staffName,
+        purchasedLocation: formData.purchasedLocation,
+      })
+
+      toast.success(`Visit added for ${membership.user.name}`)
       onVisitAdded()
       onClose()
     } catch (error) {
       console.error("Error adding visit:", error)
-      alert("Failed to add visit. Please try again.")
+      toast.error("Failed to add visit. Please try again.")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -85,16 +74,19 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVi
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Visit</DialogTitle>
+          <DialogTitle>Add Visit — {membership.user.name}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-sm text-gray-700">
+            {membership.totalVisits} of {membership.maxVisits} visits used ·{" "}
+            {membership.remainingVisits} remaining
+          </div>
+
           {willExpire && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-              <div className="flex">
-                <div className="text-yellow-800 text-sm">
-                  <strong>Warning:</strong> This will be the client's 6th visit and their membership will expire.
-                </div>
+              <div className="text-yellow-800 text-sm">
+                <strong>Heads up:</strong> this is the final visit — the membership will expire after it is added.
               </div>
             </div>
           )}
@@ -116,7 +108,7 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVi
               value={formData.staffName}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, staffName: value }))}
             >
-              <SelectTrigger>
+              <SelectTrigger id="staffName">
                 <SelectValue placeholder="Select staff member" />
               </SelectTrigger>
               <SelectContent>
@@ -130,12 +122,12 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVi
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="purchasedLocation">Purchased Location *</Label>
+            <Label htmlFor="purchasedLocation">Location *</Label>
             <Select
               value={formData.purchasedLocation}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, purchasedLocation: value }))}
             >
-              <SelectTrigger>
+              <SelectTrigger id="purchasedLocation">
                 <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
@@ -149,10 +141,12 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, clientId }: AddVi
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit">Add Visit</Button>
+            <Button type="submit" disabled={!canSubmit}>
+              {submitting ? "Adding…" : "Add Visit"}
+            </Button>
           </div>
         </form>
       </DialogContent>

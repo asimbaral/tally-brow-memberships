@@ -1,20 +1,22 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Search, Plus, Filter, ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Search, Plus, Filter, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MembershipList } from "@/components/membership-list"
 import { AddMembershipModal } from "@/components/add-client-modal"
-import { type Membership, type PaginatedMemberships, getMemberships, getAllServiceTypes } from "@/lib/data"
+import { type PaginatedMemberships, getMemberships, getAllServiceTypes } from "@/lib/data"
+
+const PAGE_SIZE = 50
 
 export default function HomePage() {
   const [paginatedData, setPaginatedData] = useState<PaginatedMemberships>({
     memberships: [],
     total: 0,
     page: 1,
-    pageSize: 100,
+    pageSize: PAGE_SIZE,
     totalPages: 0,
   })
   const [searchTerm, setSearchTerm] = useState("")
@@ -22,19 +24,15 @@ export default function HomePage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [allServiceTypes, setAllServiceTypes] = useState<string[]>([])
-
-  // Debounced search function
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null)
 
   const loadMemberships = useCallback(async (page: number, search: string, service: string, status: string) => {
     setLoading(true)
     try {
       const result = await getMemberships({
         page,
-        pageSize: 50,
+        pageSize: PAGE_SIZE,
         searchTerm: search || undefined,
         serviceFilter: service !== "all" ? service : undefined,
         statusFilter: status !== "all" ? status : undefined,
@@ -47,65 +45,62 @@ export default function HomePage() {
     }
   }, [])
 
-  // Load service types on mount
+  // Initial load
   useEffect(() => {
-    setIsMounted(true)
-    const loadServiceTypes = async () => {
-      const services = await getAllServiceTypes()
-      setAllServiceTypes(services)
-    }
-    loadServiceTypes()
+    getAllServiceTypes().then(setAllServiceTypes)
     loadMemberships(1, "", "all", "all")
   }, [loadMemberships])
 
-  // Handle search/filter changes with debounce
+  // Reload (debounced) when search or filters change
+  const isFirstRender = useRef(true)
   useEffect(() => {
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer)
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
     }
-
     const timer = setTimeout(() => {
-      const newPage = 1
-      setCurrentPage(newPage)
-      loadMemberships(newPage, searchTerm, serviceFilter, statusFilter)
-    }, 500)
-
-    setSearchDebounceTimer(timer)
-
-    return () => {
-      if (timer) clearTimeout(timer)
-    }
+      setCurrentPage(1)
+      loadMemberships(1, searchTerm, serviceFilter, statusFilter)
+    }, 400)
+    return () => clearTimeout(timer)
   }, [searchTerm, serviceFilter, statusFilter, loadMemberships])
 
-  // Handle page changes (only when page number changes)
-  useEffect(() => {
-    if (paginatedData.memberships.length === 0) return
-
-    loadMemberships(currentPage, searchTerm, serviceFilter, statusFilter)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage])
-
   const handleMembershipUpdate = async () => {
-    await loadMemberships(currentPage, searchTerm, serviceFilter, statusFilter, locationFilter)
+    await loadMemberships(currentPage, searchTerm, serviceFilter, statusFilter)
     const services = await getAllServiceTypes()
     setAllServiceTypes(services)
   }
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= paginatedData.totalPages) {
+    if (newPage >= 1 && newPage <= paginatedData.totalPages && newPage !== currentPage) {
       setCurrentPage(newPage)
+      loadMemberships(newPage, searchTerm, serviceFilter, statusFilter)
     }
+  }
+
+  const hasFilters = searchTerm.trim() !== "" || serviceFilter !== "all" || statusFilter !== "all"
+
+  const clearFilters = () => {
+    setSearchTerm("")
+    setServiceFilter("all")
+    setStatusFilter("all")
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <h1 className="text-3xl font-bold text-gray-900">Salon Membership Tracker</h1>
-            <p className="mt-2 text-gray-600">
-              Manage your salon clients and track their visits. Each membership expires after 6 visits.
-            </p>
+          <div className="py-6 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Salon Membership Tracker</h1>
+              <p className="mt-2 text-gray-600">
+                Manage your salon clients and track their visits. Each membership expires after 6 visits.
+              </p>
+            </div>
+            <Button onClick={() => setIsAddModalOpen(true)} size="lg" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add New Membership
+            </Button>
           </div>
         </div>
       </div>
@@ -113,49 +108,47 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b border-gray-200">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="relative flex-1 min-w-[200px] max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search by name or phone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Filter className="h-4 w-4 text-gray-400 shrink-0" />
-                  <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                    <SelectTrigger className="w-44">
-                      <SelectValue placeholder="All Services" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Services</SelectItem>
-                      {allServiceTypes.map((service) => (
-                        <SelectItem key={service} value={service}>
-                          {service}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-36">
-                      <SelectValue placeholder="All Statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="relative flex-1 min-w-[200px] max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search by name or phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <div className="flex justify-end">
-                <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add New Membership
-                </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-400 shrink-0" />
+                <Select value={serviceFilter} onValueChange={setServiceFilter}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="All Services" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Services</SelectItem>
+                    {allServiceTypes.map((service) => (
+                      <SelectItem key={service} value={service}>
+                        {service}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+                {hasFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="flex items-center gap-1 text-gray-500">
+                    <X className="h-4 w-4" />
+                    Clear
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -166,8 +159,16 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              <MembershipList memberships={paginatedData.memberships} onMembershipUpdate={handleMembershipUpdate} />
-              
+              <MembershipList
+                memberships={paginatedData.memberships}
+                onMembershipUpdate={handleMembershipUpdate}
+                emptyMessage={
+                  hasFilters
+                    ? "No memberships match your search or filters. Try clearing them."
+                    : undefined
+                }
+              />
+
               {/* Pagination Controls */}
               {paginatedData.totalPages > 1 && (
                 <div className="p-6 border-t border-gray-200 flex items-center justify-between">

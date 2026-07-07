@@ -17,19 +17,21 @@ export default function MembershipProfilePage() {
 
   const [membership, setMembership] = useState<Membership | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
+  const [loading, setLoading] = useState(true)
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false)
 
   useEffect(() => {
     const loadMembership = async () => {
-      // Get the specific membership with user info
-      const membershipData = await getMembershipById(membershipId)
-      
-      if (membershipData) {
+      setLoading(true)
+      try {
+        const [membershipData, visitsData] = await Promise.all([
+          getMembershipById(membershipId),
+          getVisitsByMembershipId(membershipId),
+        ])
         setMembership(membershipData)
-        
-        // Get visits for this specific membership
-        const visitsData = await getVisitsByMembershipId(membershipId)
         setVisits(visitsData)
+      } finally {
+        setLoading(false)
       }
     }
     loadMembership()
@@ -47,6 +49,14 @@ export default function MembershipProfilePage() {
     setVisits(visitsData)
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading membership...</div>
+      </div>
+    )
+  }
+
   if (!membership) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -60,7 +70,7 @@ export default function MembershipProfilePage() {
     )
   }
 
-  const sortedVisits = visits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const sortedVisits = [...visits].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   const membershipServices = membership.services || []
 
   return (
@@ -71,7 +81,7 @@ export default function MembershipProfilePage() {
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => router.push("/")} className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                Back to Clients
+                Back to Memberships
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">{membership.user.name}</h1>
@@ -150,6 +160,12 @@ export default function MembershipProfilePage() {
                     <h4 className="font-medium text-gray-900 mb-1">Last Updated</h4>
                     <p className="text-sm text-gray-600">{new Date(membership.updated_at).toLocaleDateString()}</p>
                   </div>
+                  {membership.assignedTo && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1">Sold By</h4>
+                      <p className="text-sm text-gray-600">{membership.assignedTo}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Client Info Section */}
@@ -193,7 +209,9 @@ export default function MembershipProfilePage() {
                     <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No visits recorded</h3>
                     <p className="text-gray-600 mb-4">Start tracking visits for this client</p>
-                    <Button onClick={() => setIsAddVisitModalOpen(true)}>Add First Visit</Button>
+                    <Button onClick={() => setIsAddVisitModalOpen(true)} disabled={membership.status === "expired"}>
+                      Add First Visit
+                    </Button>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -227,7 +245,7 @@ export default function MembershipProfilePage() {
         isOpen={isAddVisitModalOpen}
         onClose={() => setIsAddVisitModalOpen(false)}
         onVisitAdded={handleVisitAdded}
-        clientId={membership.user.id}
+        membership={membership}
       />
     </div>
   )

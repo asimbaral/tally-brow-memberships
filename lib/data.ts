@@ -186,10 +186,17 @@ export async function getMemberships(options?: {
       const searchPattern = `%${searchTerm}%`
       const cleanedSearchTerm = searchTerm.replace(/[^\d]/g, "")
 
+      // Only match on phone when the search contains digits — otherwise
+      // `ilike %%` matches every user and the id list overflows the URL
+      const orConditions = [`name.ilike.${searchPattern}`]
+      if (cleanedSearchTerm) {
+        orConditions.push(`phoneNumber.ilike.%${cleanedSearchTerm}%`)
+      }
+
       const { data: matchingUsers, error: userError } = await supabase
         .from('Users')
         .select('id')
-        .or(`name.ilike.${searchPattern},phoneNumber.ilike.%${cleanedSearchTerm}%`)
+        .or(orConditions.join(','))
 
       if (userError) {
         console.error('Error searching users:', userError)
@@ -361,7 +368,7 @@ export async function getMembershipById(membershipId: string): Promise<Membershi
       assignedTo: (data as any).assignedTo || null,
       user: userInfo,
       // Computed properties
-      phone: user.phoneNumber || "",
+      phone: formatPhoneNumberForDisplay(user.phoneNumber),
       serviceTypes: services,
     }
   } catch (error) {
@@ -395,63 +402,6 @@ export async function getUserByPhone(phone: string): Promise<UserInfo | null> {
   } catch (error) {
     console.error('Error fetching user by phone:', error)
     return null
-  }
-}
-
-// Get memberships by phone number
-export async function getMembershipsByPhone(phone: string): Promise<Membership[]> {
-  try {
-    // Clean phone number before searching
-    const cleanedPhone = cleanPhoneNumber(phone)
-    if (!cleanedPhone) return []
-    
-    // Query Memberships and join with Users
-    const { data, error } = await supabase
-      .from('Memberships')
-      .select(`
-        *,
-        user:Users!inner(*)
-      `)
-      .eq('user.phoneNumber', cleanedPhone)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching memberships by phone:', error)
-      return []
-    }
-
-    const memberships: Membership[] = []
-    
-    for (const membershipData of data || []) {
-      const user = (membershipData as any).user as SupabaseUser
-      if (!user) continue
-      
-      const userInfo = supabaseUserToUserInfo(user)
-      const services = membershipData.services || []
-      
-      const membership: Membership = {
-        id: membershipData.id,
-        status: membershipData.status as "active" | "expired",
-        maxVisits: membershipData.maxVisits,
-        created_at: membershipData.created_at,
-        updated_at: membershipData.updated_at,
-        totalVisits: membershipData.totalVisits,
-        remainingVisits: membershipData.remainingVisits,
-        services: membershipData.services || null,
-        assignedTo: (membershipData as any).assignedTo || null,
-        user: userInfo,
-        // Computed properties
-        phone: formatPhoneNumberForDisplay(user.phoneNumber),
-        serviceTypes: services,
-      }
-
-      memberships.push(membership)
-    }
-
-    return memberships
-  } catch (error) {
-    console.error('Error fetching memberships by phone:', error)
-    return []
   }
 }
 
@@ -497,13 +447,12 @@ export async function addMembershipForExistingUser(
     }
 
     // Automatically create the first visit
-    const firstVisit: Omit<Visit, "id" | "membershipId"> = {
-      clientId: userId,
+    await addVisit({
+      membershipId: newMembership.id,
       date: getLocalDateString(),
       staffName: membershipData.createdBy,
       purchasedLocation: membershipData.location,
-    }
-    await addVisit(firstVisit)
+    })
   } catch (error) {
     console.error('Error adding membership for existing user:', error)
     throw error
@@ -565,8 +514,9 @@ export async function addMembership(membershipData: {
       .eq('phoneNumber', cleanedPhoneNumber)
       .maybeSingle()
 
-      console.log('existingUser', existingUser);
-      console.log('checkError', checkError);
+    if (checkError) {
+      console.error('Error checking for existing user:', checkError)
+    }
 
     if (existingUser) {
       // User exists, just add a new membership
@@ -623,76 +573,15 @@ export async function addMembership(membershipData: {
       }
 
       // Automatically create the first visit
-      const firstVisit: Omit<Visit, "id" | "membershipId"> = {
-        clientId: data.id,
+      await addVisit({
+        membershipId: newMembership.id,
         date: getLocalDateString(),
         staffName: membershipData.createdBy,
         purchasedLocation: membershipData.location,
-      }
-      await addVisit(firstVisit)
+      })
     }
   } catch (error) {
     console.error('Error adding membership:', error)
-    throw error
-  }
-}
-
-// Update a membership's services
-export async function updateMembershipServices(membershipId: string, services: string[]): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('Memberships')
-      .update({ services: services.length > 0 ? services : null })
-      .eq('id', membershipId)
-
-    if (error) {
-      console.error('Error updating membership services:', error)
-      throw error
-    }
-  } catch (error) {
-    console.error('Error updating membership services:', error)
-    throw error
-  }
-}
-
-// Helper function to get or create active membership for a client
-async function getOrCreateActiveMembership(clientId: string): Promise<string> {
-  try {
-    // Try to get an active membership
-    const { data: activeMembership, error: fetchError } = await supabase
-      .from('Memberships')
-      .select('id')
-      .eq('userId', clientId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (activeMembership && !fetchError) {
-      return activeMembership.id
-    }
-
-    // If no active membership exists, create a new one
-    const { data: newMembership, error: createError } = await supabase
-      .from('Memberships')
-      .insert([{
-        userId: clientId,
-        status: 'active',
-        totalVisits: 0,
-        remainingVisits: 6,
-        maxVisits: 6,
-      }])
-      .select('id')
-      .single()
-
-    if (createError || !newMembership) {
-      console.error('Error creating membership:', createError)
-      throw createError || new Error('Failed to create membership')
-    }
-
-    return newMembership.id
-  } catch (error) {
-    console.error('Error in getOrCreateActiveMembership:', error)
     throw error
   }
 }
@@ -738,26 +627,31 @@ async function updateMembership(
   }
 }
 
-// Get all visits from Supabase
-export async function getVisits(): Promise<Visit[]> {
+// Get the most recent visit date for each of the given membership IDs (single query)
+export async function getLastVisitDates(membershipIds: string[]): Promise<Record<string, string>> {
+  if (membershipIds.length === 0) return {}
   try {
     const { data, error } = await supabase
       .from('MembershipVisits')
-      .select(`
-        *,
-        membership:Memberships!inner(userId)
-      `)
-      .order('date', { ascending: false })
+      .select('membershipId, date')
+      .in('membershipId', membershipIds)
 
     if (error) {
-      console.error('Error fetching visits:', error)
-      return []
+      console.error('Error fetching last visit dates:', error)
+      return {}
     }
 
-    return Promise.all((data || []).map(supabaseVisitToVisit))
+    const lastVisits: Record<string, string> = {}
+    for (const visit of data || []) {
+      const current = lastVisits[visit.membershipId]
+      if (!current || visit.date > current) {
+        lastVisits[visit.membershipId] = visit.date
+      }
+    }
+    return lastVisits
   } catch (error) {
-    console.error('Error fetching visits:', error)
-    return []
+    console.error('Error fetching last visit dates:', error)
+    return {}
   }
 }
 
@@ -785,48 +679,10 @@ export async function getVisitsByMembershipId(membershipId: string): Promise<Vis
   }
 }
 
-// Get visits by client ID (across all memberships)
-export async function getVisitsByClientId(clientId: string): Promise<Visit[]> {
+// Add a visit to a specific membership
+export async function addVisit(visitData: Omit<Visit, "id" | "clientId">): Promise<void> {
   try {
-    // Get all memberships for this client first
-    const { data: memberships, error: membershipError } = await supabase
-      .from('Memberships')
-      .select('id')
-      .eq('userId', clientId)
-
-    if (membershipError || !memberships || memberships.length === 0) {
-      return []
-    }
-
-    const membershipIds = memberships.map(m => m.id)
-
-    // Get all visits for these memberships
-    const { data, error } = await supabase
-      .from('MembershipVisits')
-      .select(`
-        *,
-        membership:Memberships!inner(userId)
-      `)
-      .in('membershipId', membershipIds)
-      .order('date', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching visits by client ID:', error)
-      return []
-    }
-
-    return Promise.all((data || []).map(supabaseVisitToVisit))
-  } catch (error) {
-    console.error('Error fetching visits by client ID:', error)
-    return []
-  }
-}
-
-// Add a visit
-export async function addVisit(visitData: Omit<Visit, "id" | "membershipId">): Promise<void> {
-  try {
-    // Get or create active membership for this client
-    const membershipId = await getOrCreateActiveMembership(visitData.clientId)
+    const membershipId = visitData.membershipId
 
     // Insert visit into Supabase
     const { data, error } = await supabase
@@ -892,69 +748,6 @@ export async function addVisit(visitData: Omit<Visit, "id" | "membershipId">): P
   }
 }
 
-// Get membership status from Supabase (returns the active membership or most recent one)
-// NOTE: This function is READ-ONLY and does NOT create memberships
-// Memberships should only be created when adding a client or visit
-export async function getMembershipStatus(clientId: string): Promise<{
-  status: "active" | "expired"
-  remainingVisits: number
-  totalVisits: number
-}> {
-  try {
-    // First try to get an active membership
-    let { data, error } = await supabase
-      .from('Memberships')
-      .select('*')
-      .eq('userId', clientId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    // If no active membership, get the most recent one
-    if (!data && error?.code === 'PGRST116') {
-      const { data: allMemberships, error: allError } = await supabase
-        .from('Memberships')
-        .select('*')
-        .eq('userId', clientId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (allError && allError.code !== 'PGRST116') {
-        console.error('Error fetching membership:', allError)
-      }
-
-      data = allMemberships
-    }
-
-    // If we have membership data, return it
-    if (data) {
-      return {
-        status: data.status,
-        remainingVisits: data.remainingVisits,
-        totalVisits: data.totalVisits,
-      }
-    }
-
-    // If no membership exists, calculate from visits (read-only fallback)
-    // This should rarely happen - memberships should be created when clients/visits are added
-    const visits = await getVisitsByClientId(clientId)
-    const totalVisits = visits.length
-    const remainingVisits = Math.max(0, 6 - totalVisits)
-    const status = totalVisits >= 6 ? "expired" : "active"
-    return { status, remainingVisits, totalVisits }
-  } catch (error) {
-    console.error('Error getting membership status:', error)
-    // Fallback - calculate from visits
-    const visits = await getVisitsByClientId(clientId)
-    const totalVisits = visits.length
-    const remainingVisits = Math.max(0, 6 - totalVisits)
-    const status = totalVisits >= 6 ? "expired" : "active"
-    return { status, remainingVisits, totalVisits }
-  }
-}
-
 // Get all services from Supabase Service table
 export async function getServices(): Promise<SupabaseService[]> {
   try {
@@ -976,23 +769,3 @@ export async function getServices(): Promise<SupabaseService[]> {
   }
 }
 
-// Get services by category
-export async function getServicesByCategory(category: string): Promise<SupabaseService[]> {
-  try {
-    const { data, error } = await supabase
-      .from('Service')
-      .select('*')
-      .eq('Category', category)
-      .order('Service', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching services by category:', error)
-      return []
-    }
-
-    return data || []
-  } catch (error) {
-    console.error('Error fetching services by category:', error)
-    return []
-  }
-}
