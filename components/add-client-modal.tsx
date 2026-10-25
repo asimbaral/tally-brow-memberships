@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { addMembership, STAFF_OPTIONS, LOCATION_OPTIONS, getUserByPhone, getServices, formatPhoneNumberForDisplay } from "@/lib/data"
-import { Search } from "lucide-react"
+import { ChevronDown, Search } from "lucide-react"
 import { toast } from "sonner"
 
 interface AddMembershipModalProps {
@@ -222,7 +222,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                   {searching ? "Searching…" : "Search"}
                 </Button>
               </div>
-              <p className="text-sm text-gray-500">Enter phone number to check if client exists</p>
+              <p className="type-small text-ink-2">Enter phone number to check if client exists</p>
             </div>
           </div>
         )}
@@ -230,12 +230,12 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         {(step === "new" || step === "existing") && (
           <form onSubmit={handleSubmit} className="space-y-4">
             {step === "existing" && existingClient && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 space-y-1">
-                <p className="text-sm font-medium text-blue-900">Existing Client Found</p>
-                <p className="text-sm text-blue-700">
-                  {existingClient.name} - {existingClient.phone}
+              <div className="rounded-[1.25rem] bg-lilac p-4 space-y-1">
+                <p className="type-eyebrow text-lilac-ink">Existing client found</p>
+                <p className="font-display text-lg font-semibold">
+                  {existingClient.name} · <span className="tabular-nums">{existingClient.phone}</span>
                 </p>
-                <p className="text-xs text-blue-600">Creating new membership for this client</p>
+                <p className="type-caption text-ink-2">Creating a new membership for this client</p>
               </div>
             )}
 
@@ -254,7 +254,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number *</Label>
-                  <Input id="phone" value={formData.phone} disabled className="bg-gray-50" />
+                  <Input id="phone" value={formData.phone} disabled className="bg-surface-2" />
                 </div>
 
                 <div className="space-y-2">
@@ -272,17 +272,17 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
             )}
 
             {step === "existing" && (
-              <div className="space-y-2 bg-gray-50 p-3 rounded-md">
+              <div className="tile space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Name:</span>
+                  <span className="text-ink-2">Name:</span>
                   <span className="font-medium">{formData.name}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Phone:</span>
+                  <span className="text-ink-2">Phone:</span>
                   <span className="font-medium">{formData.phone}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Zip Code:</span>
+                  <span className="text-ink-2">Zip Code:</span>
                   <span className="font-medium">{formData.zipCode}</span>
                 </div>
               </div>
@@ -291,14 +291,14 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
             <div className="space-y-2">
               <Label>Service Types * (Select all that apply)</Label>
               {loadingServices ? (
-                <div className="text-sm text-gray-500 p-3">Loading services...</div>
+                <div className="type-small text-ink-2 p-3">Loading services...</div>
               ) : Object.keys(servicesByCategory).length === 0 ? (
-                <div className="text-sm text-gray-500 p-3">No services available</div>
+                <div className="type-small text-ink-2 p-3">No services available</div>
               ) : (
-                <div className="border rounded-md overflow-hidden">
+                <div className="rounded-[1.25rem] border-2 border-lip-soft overflow-hidden">
                   {activeCategory && (
-                    <div className="bg-gray-50 border-b p-3">
-                      <p className="text-sm font-semibold text-gray-700 mb-2">{activeCategory}</p>
+                    <div className="bg-surface-2 border-b-2 border-lip-soft p-3">
+                      <p className="type-eyebrow text-brand-ink mb-2">{activeCategory}</p>
                       <div className="flex flex-wrap gap-2">
                         {servicesByCategory[activeCategory].map((service) => {
                           const serviceKey = `${activeCategory} - ${service}`
@@ -309,10 +309,10 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                               type="button"
                               aria-pressed={isSelected}
                               onClick={() => handleServiceTypeChange(activeCategory, service, !isSelected)}
-                              className={`min-h-[52px] px-4 py-2 rounded-lg border-2 text-base font-medium transition-colors ${
+                              className={`pressable min-h-[52px] px-4 py-2 rounded-full border-2 text-base font-semibold ${
                                 isSelected
-                                  ? "bg-blue-50 border-blue-500 text-blue-900"
-                                  : "bg-white border-gray-200 text-gray-700 hover:border-gray-400"
+                                  ? "bg-brand-tint border-brand text-brand-ink"
+                                  : "bg-surface border-lip-soft text-ink hover:border-brand/50"
                               }`}
                             >
                               {service}
@@ -322,7 +322,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                       </div>
                     </div>
                   )}
-                  <div className="divide-y max-h-[40vh] overflow-y-auto">
+                  <div className="divide-y-2 divide-line max-h-[40vh] overflow-y-auto">
                     {Object.entries(servicesByCategory).map(([category, services]) => {
                       const selectedCount = services.filter((s) =>
                         formData.serviceTypes.includes(`${category} - ${s}`)
@@ -334,19 +334,19 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                           type="button"
                           onClick={() => setActiveCategory(isActive ? null : category)}
                           className={`w-full flex items-center justify-between min-h-[56px] px-4 py-3 text-left transition-colors ${
-                            isActive ? "bg-blue-50" : "hover:bg-gray-50"
+                            isActive ? "bg-brand-tint" : "hover:bg-surface-2"
                           }`}
                         >
-                          <span className={`text-base font-medium ${isActive ? "text-blue-900" : "text-gray-900"}`}>
+                          <span className={`text-base font-semibold ${isActive ? "text-brand-ink" : "text-ink"}`}>
                             {category}
                           </span>
                           <div className="flex items-center gap-2">
                             {selectedCount > 0 && (
-                              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                              <span className="bg-brand text-on-brand text-xs font-semibold px-2 py-0.5 rounded-full tabular-nums">
                                 {selectedCount}
                               </span>
                             )}
-                            <span className="text-gray-400 text-sm">{isActive ? "▼" : "▶"}</span>
+                            <ChevronDown className={`h-4 w-4 text-brand-ink transition-transform duration-[480ms] ease-spring ${isActive ? "" : "-rotate-90"}`} />
                           </div>
                         </button>
                       )
@@ -407,7 +407,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
 
             <div className="space-y-2 pt-4">
               {missingFields.length > 0 && (
-                <p className="text-xs text-gray-500 text-right">
+                <p className="type-caption text-ink-2 text-right">
                   Still needed: {missingFields.join(", ")}
                 </p>
               )}

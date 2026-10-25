@@ -1,82 +1,188 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:is(.dark *));
+/* Dark mode follows the system, the same as the Tally Brow website. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
+/* ───────────────────────── Tokens ─────────────────────────
+   The blush-and-lavender palette from the Tally Brow Studio website. The rose
+   brand color is a pinker cousin of the logo red (#e21226); lavender echoes the
+   studios' painted walls. Every text/background pair keeps ≥ 4.5:1 contrast. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --bg: #fff7f9;
+  --surface: #ffffff;
+  --surface-2: #ffeef3;
+  --ink: #2b1a22;
+  --ink-2: #6b5560;
+  --line: rgb(184 31 86 / 0.12);
+  --brand: #d6336c;
+  --brand-press: #b81f56;
+  --brand-ink: #b81f56;
+  --on-brand: #ffffff;
+  --brand-tint: #ffe1eb;
+  --lilac: #efe7ff;
+  --lilac-ink: #6d4fc2;
+  --peach: #ffeadf;
+  --peach-ink: #a8452a;
+  --mint: #e2f7ec;
+  --mint-ink: #1d6b4a;
+  --butter: #fff3c4;
+  --butter-ink: #7a5600;
+  --danger: #c0352b;
+  --danger-tint: #fde4e1;
+  --danger-ink: #a12a21;
+  --success: #1f7a4d;
+
+  /* Sticker-book details: the "lip" is the solid edge under puffy buttons and
+     cards, and the dots are the faint polka-dot paper behind everything. */
+  --lip: #a3184a;
+  --lip-soft: #f6cfdc;
+  --dot: rgb(214 51 108 / 0.075);
+  --stitch: rgb(214 51 108 / 0.35);
+
+  /* Materials: translucent chrome that content scrolls beneath. */
+  --material: rgb(255 247 249 / 0.72);
+  --material-thick: rgb(255 247 249 / 0.86);
+  --material-edge: rgb(255 255 255 / 0.6);
+  --scrim: rgb(43 12 26 / 0.36);
+  /* Shadows are tinted rose instead of grey, so depth stays soft. */
+  --shadow-sm: 0 1px 2px rgb(184 31 86 / 0.06), 0 2px 6px -2px rgb(184 31 86 / 0.08);
+  --shadow-md: 0 10px 28px -10px rgb(184 31 86 / 0.28);
+  --shadow-lg: 0 28px 64px -16px rgb(122 20 60 / 0.34);
+  --glow: 0 8px 20px -8px rgb(214 51 108 / 0.6);
+
+  /* Springs. Critically damped (damping 1.0) curves sampled into linear();
+     response 0.3s → settles in 480ms, response 0.4s → 640ms. */
+  --spring: linear(0, 0.0667, 0.2048, 0.3577, 0.4991, 0.6189, 0.7154, 0.7905, 0.8475, 0.89, 0.9213, 0.9441, 0.9605, 0.9722, 0.9805, 0.9864, 0.9905, 0.9934, 0.9955, 0.9969, 0.9978, 0.9985, 0.999, 0.9993, 1);
+  --spring-fast: 480ms;
+  --spring-base: 640ms;
+  --press: 100ms;
+  /* A playful spring (damping 0.6, response 0.4) for sticker-like moments only. */
+  --spring-bouncy: linear(0, 0.0348, 0.1218, 0.2406, 0.3747, 0.5111, 0.6404, 0.7563, 0.8552, 0.9355, 0.9973, 1.0418, 1.0711, 1.0875, 1.0937, 1.0921, 1.0851, 1.0746, 1.0622, 1.0494, 1.037, 1.0257, 1.016, 1.0079, 1.0017, 0.9971, 0.9939, 0.9921, 0.9913, 0.9913, 0.9918, 0.9927, 0.9939, 0.9951, 0.9963, 0.9973, 0.9983, 0.9991, 0.9997, 1.0002, 1);
+  --spring-pop: 700ms;
+
+  /* shadcn/ui variables, pointed at the palette above so every primitive
+     (dialogs, selects, toasts) picks up the same look. */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--on-brand);
+  --secondary: var(--brand-tint);
+  --secondary-foreground: var(--brand-ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-2);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-ink);
+  --border: var(--lip-soft);
+  --input: var(--lip-soft);
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --chart-2: var(--lilac-ink);
+  --chart-3: var(--peach-ink);
+  --chart-4: var(--mint-ink);
+  --chart-5: var(--butter-ink);
+  --radius: 0.875rem;
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--on-brand);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--brand);
+
+  color-scheme: light;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1016;
+    --surface: #23151c;
+    --surface-2: #2d1b24;
+    --ink: #fbeff3;
+    --ink-2: #cdb5bf;
+    --line: rgb(255 200 220 / 0.13);
+    --brand: #d6336c;
+    --brand-press: #c2255c;
+    --brand-ink: #ff8fb5;
+    --on-brand: #ffffff;
+    --brand-tint: #3d1a28;
+    --lilac: #2a2140;
+    --lilac-ink: #c9b6ff;
+    --peach: #3a2620;
+    --peach-ink: #ffb899;
+    --mint: #1a2e25;
+    --mint-ink: #8fe3bb;
+    --butter: #352c14;
+    --butter-ink: #ffd970;
+    --danger: #e0574c;
+    --danger-tint: #3b1a18;
+    --danger-ink: #ffa49c;
+    --success: #5fd39a;
+    --lip: #7d1440;
+    --lip-soft: #46202f;
+    --dot: rgb(255 143 181 / 0.055);
+    --stitch: rgb(255 143 181 / 0.35);
+    --material: rgb(35 21 28 / 0.68);
+    --material-thick: rgb(35 21 28 / 0.84);
+    --material-edge: rgb(255 255 255 / 0.08);
+    --scrim: rgb(0 0 0 / 0.55);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 10px 28px -8px rgb(0 0 0 / 0.55);
+    --shadow-lg: 0 28px 70px -12px rgb(0 0 0 / 0.7);
+    --glow: 0 8px 22px -8px rgb(214 51 108 / 0.7);
+    color-scheme: dark;
+  }
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-press: var(--brand-press);
+  --color-brand-ink: var(--brand-ink);
+  --color-on-brand: var(--on-brand);
+  --color-brand-tint: var(--brand-tint);
+  --color-lilac: var(--lilac);
+  --color-lilac-ink: var(--lilac-ink);
+  --color-peach: var(--peach);
+  --color-peach-ink: var(--peach-ink);
+  --color-mint: var(--mint);
+  --color-mint-ink: var(--mint-ink);
+  --color-butter: var(--butter);
+  --color-butter-ink: var(--butter-ink);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-danger-ink: var(--danger-ink);
+  --color-success: var(--success);
+  --color-lip: var(--lip);
+  --color-lip-soft: var(--lip-soft);
+
+  --font-display: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
+  --font-script: var(--font-dancing), cursive;
+  /* Body text uses the platform font: it ships optical sizing and tracking tables.
+     ui-rounded picks SF Pro Rounded on Apple devices for a softer voice. */
+  --font-sans: ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  /* Radius by role: pill = actions and labels, card = 2rem surfaces,
+     control = inputs and small targets, circle = genuinely round things. */
+  --radius-control: 0.875rem;
+  --radius-circle: 50%;
+  --ease-spring: var(--spring);
+  --ease-bouncy: var(--spring-bouncy);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -115,11 +221,225 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ───────────────────────── Base ───────────────────────── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--bg);
+    background-image: radial-gradient(var(--dot) 1.6px, transparent 1.9px);
+    background-size: 24px 24px;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  a,
+  button,
+  summary,
+  [role="button"] {
+    touch-action: manipulation; /* no double-tap-zoom delay on the input path */
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    background: var(--lilac);
+    color: var(--ink);
+  }
+}
+
+/* ───────────────────────── Type ─────────────────────────
+   Tracking and leading are size-specific: large text tightens, small text opens. */
+@utility type-display {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.5rem + 2.2vw, 3rem);
+  line-height: 1.06;
+  letter-spacing: -0.026em;
+  font-weight: 600;
+  font-optical-sizing: auto;
+  text-wrap: balance;
+}
+@utility type-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.3rem + 0.9vw, 2rem);
+  line-height: 1.12;
+  letter-spacing: -0.018em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+@utility type-heading {
+  font-family: var(--font-display);
+  font-size: clamp(1.1875rem, 1.1rem + 0.35vw, 1.375rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+@utility type-lead {
+  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  line-height: 1.5;
+  letter-spacing: -0.004em;
+  text-wrap: pretty;
+}
+@utility type-small {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  letter-spacing: 0.003em;
+}
+@utility type-caption {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  letter-spacing: 0.012em;
+}
+@utility type-eyebrow {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+/* Handwritten accent, for short asides only (never for body copy). */
+@utility type-script {
+  font-family: var(--font-script);
+  font-size: clamp(1.25rem, 1.15rem + 0.4vw, 1.5rem);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* A pill-shaped label, used above titles. */
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.375rem 0.85rem 0.375rem 0.65rem;
+  border-radius: 999px;
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+  box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 3px var(--lip-soft);
+}
+
+/* ───────────────────────── Interaction ─────────────────────────
+   Feedback lives on the press: it is instant (100ms) on pointer-down, and
+   springs back (critically damped) on release. */
+@utility pressable {
+  transition:
+    transform var(--release-duration, var(--spring-fast)) var(--release-ease, var(--spring)),
+    background-color 160ms ease-out,
+    box-shadow 160ms ease-out,
+    color 160ms ease-out;
+  &:active:not(:disabled) {
+    /* Puffy controls sink onto their lip instead of only shrinking. */
+    transform: translateY(var(--press-y, 0px)) scale(var(--press-scale, 0.97));
+    transition-duration: var(--press), 100ms, 100ms, 100ms;
+    transition-timing-function: ease-out;
+  }
+}
+
+/* Sticker cards: a soft pastel outline and a little solid edge underneath. */
+@utility card {
+  background: var(--surface);
+  border-radius: 2rem;
+  box-shadow: 0 0 0 2px var(--lip-soft), 0 5px 0 var(--lip-soft), var(--shadow-sm);
+}
+
+/* Pastel tile for small grouped details. */
+@utility tile {
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background: var(--surface-2);
+}
+
+/* Hand-drawn squiggle under a highlighted word. */
+@utility squiggle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='12' viewBox='0 0 40 12'%3E%3Cpath d='M0 6 Q5 0 10 6 T20 6 T30 6 T40 6' fill='none' stroke='%23f48fb1' stroke-width='3.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 0.75em 0.25em;
+  padding-bottom: 0.14em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* ───────────────────────── Materials ───────────────────────── */
+@utility material {
+  background: var(--material);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+/* Bigger surfaces read as thicker: stronger blur, deeper shadow. */
+@utility material-thick {
+  background: var(--material-thick);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  backdrop-filter: blur(36px) saturate(190%);
+  box-shadow: 0 1px 0 var(--material-edge) inset, var(--shadow-lg);
+}
+
+/* Scroll edge effect instead of a hard divider: a soft fade appears under the
+   header only once content has actually scrolled beneath it. */
+.site-header::after {
+  content: "";
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 14px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(184 31 86 / 0.08), transparent);
+  opacity: 0;
+}
+@supports (animation-timeline: scroll()) {
+  .site-header::after {
+    animation: edge-in linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 48px;
+  }
+}
+@supports not (animation-timeline: scroll()) {
+  .site-header::after { opacity: 1; }
+}
+@keyframes edge-in {
+  to { opacity: 1; }
+}
+@media (prefers-color-scheme: dark) {
+  .site-header::after { background: linear-gradient(to bottom, rgb(0 0 0 / 0.35), transparent); }
+}
+
+/* ───────────────────────── Accessibility preferences ───────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pressable,
+  .pressable:active {
+    transform: none !important;
+    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .material,
+  .material-thick {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+@media (prefers-contrast: more) {
+  :root {
+    --line: rgb(43 26 34 / 0.55);
+    --ink-2: #3f2c35;
+    --material: var(--surface);
+    --material-thick: var(--surface);
+  }
+  .material,
+  .material-thick {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: 0 0 0 1.5px var(--ink) !important;
+  }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --line: rgb(247 238 239 / 0.6);
+    --ink-2: #e2d6d8;
   }
 }

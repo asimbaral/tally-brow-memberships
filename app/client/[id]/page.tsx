@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddVisitModal } from "@/components/add-visit-modal"
+import { VisitStamps } from "@/components/membership-list"
+import { Eyebrow, PageHero, SiteHeader } from "@/components/site-header"
 import { type Visit, type Membership, getMembershipById, getVisitsByMembershipId } from "@/lib/data"
 import { formatLocalDate } from "@/lib/utils"
 
@@ -51,18 +53,23 @@ export default function MembershipProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading membership...</div>
+      <div className="min-h-screen">
+        <SiteHeader />
+        <div className="text-center py-24">
+          <p className="type-script text-brand-ink">Just a moment…</p>
+          <p className="type-small mt-1 text-ink-2">Loading membership</p>
+        </div>
       </div>
     )
   }
 
   if (!membership) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Membership not found</h2>
-          <Button onClick={() => router.push("/")} className="mt-4">
+      <div className="min-h-screen">
+        <SiteHeader />
+        <div className="text-center py-24 px-4">
+          <h2 className="type-title">Membership not found</h2>
+          <Button onClick={() => router.push("/")} className="mt-6">
             Back to Membership List
           </Button>
         </div>
@@ -74,43 +81,50 @@ export default function MembershipProfilePage() {
   const membershipServices = membership.services || []
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.push("/")} className="flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Memberships
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{membership.user.name}</h1>
-                <p className="mt-1 text-gray-600">Membership Details</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen">
+      <SiteHeader />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PageHero>
+        <Button variant="ghost" size="sm" onClick={() => router.push("/")} className="-ml-3">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Memberships
+        </Button>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Eyebrow>Membership details</Eyebrow>
+          <Badge variant={membership.status === "active" ? "success" : "destructive"}>
+            {membership.status === "active" ? "Active" : "Expired"}
+          </Badge>
+        </div>
+        <h1 className="type-display mt-4">{membership.user.name}</h1>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <VisitStamps used={membership.totalVisits} max={membership.maxVisits} active={membership.status === "active"} />
+          <span className="type-small text-ink-2 tabular-nums">
+            {membership.status === "active"
+              ? `${membership.remainingVisits} of ${membership.maxVisits} visits remaining`
+              : `Expired after ${membership.totalVisits} visits`}
+          </span>
+        </div>
+      </PageHero>
+
+      <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Membership Info Card */}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
+                <CardTitle className="type-heading flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-brand-ink" />
                   Membership Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Status</h4>
+                  <h4 className="type-eyebrow text-brand-ink mb-2">Status</h4>
                   <div className="flex items-center gap-3">
-                    <Badge variant={membership.status === "active" ? "default" : "destructive"}>
+                    <Badge variant={membership.status === "active" ? "success" : "destructive"}>
                       {membership.status === "active" ? "Active" : "Expired"}
                     </Badge>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-ink-2">
                       {membership.status === "active"
                         ? `${membership.remainingVisits} visits remaining`
                         : `Expired after ${membership.totalVisits} visits`}
@@ -119,25 +133,25 @@ export default function MembershipProfilePage() {
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Visit Count</h4>
+                  <h4 className="type-eyebrow text-brand-ink mb-2">Visit Count</h4>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Total Visits:</span>
-                      <span className="font-medium">{membership.totalVisits}</span>
+                      <span className="text-sm text-ink-2">Total Visits:</span>
+                      <span className="font-semibold tabular-nums">{membership.totalVisits}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Remaining:</span>
-                      <span className="font-medium">{membership.remainingVisits}</span>
+                      <span className="text-sm text-ink-2">Remaining:</span>
+                      <span className="font-semibold tabular-nums">{membership.remainingVisits}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Maximum:</span>
-                      <span className="font-medium">{membership.maxVisits}</span>
+                      <span className="text-sm text-ink-2">Maximum:</span>
+                      <span className="font-semibold tabular-nums">{membership.maxVisits}</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Services</h4>
+                  <h4 className="type-eyebrow text-brand-ink mb-2">Services</h4>
                   {membershipServices.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {membershipServices.map((service) => (
@@ -147,40 +161,40 @@ export default function MembershipProfilePage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">No services assigned</p>
+                    <p className="text-sm text-ink-2">No services assigned</p>
                   )}
                 </div>
 
-                <div className="border-t pt-4 space-y-2">
+                <div className="border-t-2 border-line pt-4 space-y-2">
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-1">Created</h4>
-                    <p className="text-sm text-gray-600">{new Date(membership.created_at).toLocaleDateString()}</p>
+                    <h4 className="type-eyebrow text-brand-ink mb-1">Created</h4>
+                    <p className="text-sm text-ink-2">{new Date(membership.created_at).toLocaleDateString()}</p>
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-1">Last Updated</h4>
-                    <p className="text-sm text-gray-600">{new Date(membership.updated_at).toLocaleDateString()}</p>
+                    <h4 className="type-eyebrow text-brand-ink mb-1">Last Updated</h4>
+                    <p className="text-sm text-ink-2">{new Date(membership.updated_at).toLocaleDateString()}</p>
                   </div>
                   {membership.assignedTo && (
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Sold By</h4>
-                      <p className="text-sm text-gray-600">{membership.assignedTo}</p>
+                      <h4 className="type-eyebrow text-brand-ink mb-1">Sold By</h4>
+                      <p className="text-sm text-ink-2">{membership.assignedTo}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Client Info Section */}
-                <div className="border-t pt-4 space-y-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <User className="h-4 w-4" />
+                <div className="border-t-2 border-line pt-4 space-y-3">
+                  <CardTitle className="font-display text-[1.0625rem] font-semibold flex items-center gap-2">
+                    <User className="h-4 w-4 text-brand-ink" />
                     Client Information
                   </CardTitle>
                   <div className="flex items-center gap-3">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm font-medium">{membership.phone}</span>
+                    <Phone className="h-4 w-4 text-brand-ink" />
+                    <span className="text-sm font-semibold tabular-nums">{membership.phone}</span>
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-1 text-sm">Zip Code</h4>
-                    <p className="text-sm text-gray-600">{membership.user.zipCode}</p>
+                    <h4 className="type-eyebrow text-brand-ink mb-1">Zip Code</h4>
+                    <p className="text-sm text-ink-2">{membership.user.zipCode}</p>
                   </div>
                 </div>
               </CardContent>
@@ -191,11 +205,10 @@ export default function MembershipProfilePage() {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Visit History</CardTitle>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle className="type-heading">Visit History</CardTitle>
                   <Button
                     onClick={() => setIsAddVisitModalOpen(true)}
-                    className="flex items-center gap-2"
                     disabled={membership.status === "expired"}
                   >
                     <Plus className="h-4 w-4" />
@@ -206,28 +219,30 @@ export default function MembershipProfilePage() {
               <CardContent>
                 {sortedVisits.length === 0 ? (
                   <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No visits recorded</h3>
-                    <p className="text-gray-600 mb-4">Start tracking visits for this client</p>
+                    <div className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-lilac text-lilac-ink">
+                      <Calendar className="h-7 w-7" />
+                    </div>
+                    <h3 className="type-heading mb-2">No visits recorded</h3>
+                    <p className="type-small text-ink-2 mb-5">Start tracking visits for this client</p>
                     <Button onClick={() => setIsAddVisitModalOpen(true)} disabled={membership.status === "expired"}>
                       Add First Visit
                     </Button>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto rounded-[1.25rem] border-2 border-line">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-900">Staff Member</th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-900">Purchased Location</th>
+                        <tr className="bg-surface-2">
+                          <th className="text-left py-3 px-4 type-eyebrow text-brand-ink">Date</th>
+                          <th className="text-left py-3 px-4 type-eyebrow text-brand-ink">Staff Member</th>
+                          <th className="text-left py-3 px-4 type-eyebrow text-brand-ink">Purchased Location</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y-2 divide-line">
                         {sortedVisits.map((visit) => (
-                          <tr key={visit.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm">{formatLocalDate(visit.date)}</td>
-                            <td className="py-3 px-4 text-sm font-medium">{visit.staffName}</td>
+                          <tr key={visit.id} className="transition-colors hover:bg-surface-2">
+                            <td className="py-3 px-4 text-sm tabular-nums whitespace-nowrap">{formatLocalDate(visit.date)}</td>
+                            <td className="py-3 px-4 text-sm font-semibold">{visit.staffName}</td>
                             <td className="py-3 px-4 text-sm">{visit.purchasedLocation}</td>
                           </tr>
                         ))}

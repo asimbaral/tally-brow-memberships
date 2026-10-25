@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MembershipList } from "@/components/membership-list"
+import { Eyebrow, PageHero, SiteHeader } from "@/components/site-header"
 import { AddMembershipModal } from "@/components/add-client-modal"
 import { type PaginatedMemberships, getMemberships, getAllServiceTypes } from "@/lib/data"
 
@@ -87,30 +88,38 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Salon Membership Tracker</h1>
-              <p className="mt-2 text-gray-600">
-                Manage your salon clients and track their visits. Each membership expires after 6 visits.
-              </p>
-            </div>
-            <Button onClick={() => setIsAddModalOpen(true)} size="lg" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add New Membership
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen">
+      <SiteHeader>
+        <Button onClick={() => setIsAddModalOpen(true)} className="max-sm:hidden">
+          <Plus className="h-4 w-4" />
+          New Membership
+        </Button>
+      </SiteHeader>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
+      <PageHero>
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <Eyebrow>Six visits per membership</Eyebrow>
+            <h1 className="type-display mt-4">
+              Client <span className="squiggle text-brand-ink">memberships</span>
+            </h1>
+            <p className="type-lead mt-3 max-w-xl text-ink-2">
+              Look up a client, log their visit, and see how many they have left. Each membership expires after 6 visits.
+            </p>
+          </div>
+          <Button onClick={() => setIsAddModalOpen(true)} size="lg" className="sm:hidden w-full">
+            <Plus className="h-4 w-4" />
+            Add New Membership
+          </Button>
+        </div>
+      </PageHero>
+
+      <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+        <div className="card overflow-hidden">
+          <div className="border-b-2 border-line p-4 sm:p-6">
             <div className="flex flex-wrap gap-3 items-center">
               <div className="relative flex-1 min-w-[200px] max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-ink h-4 w-4" />
                 <Input
                   placeholder="Search by name or phone..."
                   value={searchTerm}
@@ -119,7 +128,7 @@ export default function HomePage() {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-400 shrink-0" />
+                <Filter className="h-4 w-4 text-ink-2 shrink-0" />
                 <Select value={serviceFilter} onValueChange={setServiceFilter}>
                   <SelectTrigger className="w-44">
                     <SelectValue placeholder="All Services" />
@@ -144,7 +153,7 @@ export default function HomePage() {
                   </SelectContent>
                 </Select>
                 {hasFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters} className="flex items-center gap-1 text-gray-500">
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
                     <X className="h-4 w-4" />
                     Clear
                   </Button>
@@ -154,8 +163,9 @@ export default function HomePage() {
           </div>
 
           {loading ? (
-            <div className="text-center py-12">
-              <div className="text-gray-500">Loading memberships...</div>
+            <div className="text-center py-16">
+              <p className="type-script text-brand-ink">Just a moment…</p>
+              <p className="type-small mt-1 text-ink-2">Loading memberships</p>
             </div>
           ) : (
             <>
@@ -171,8 +181,8 @@ export default function HomePage() {
 
               {/* Pagination Controls */}
               {paginatedData.totalPages > 1 && (
-                <div className="p-6 border-t border-gray-200 flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
+                <div className="p-4 sm:p-6 border-t-2 border-line flex flex-wrap items-center justify-between gap-4">
+                  <div className="type-small text-ink-2 tabular-nums">
                     Showing {((paginatedData.page - 1) * paginatedData.pageSize) + 1} to{" "}
                     {Math.min(paginatedData.page * paginatedData.pageSize, paginatedData.total)} of{" "}
                     {paginatedData.total} memberships
@@ -185,7 +195,7 @@ export default function HomePage() {
                       disabled={paginatedData.page === 1 || loading}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Previous
+                      <span className="max-sm:sr-only">Previous</span>
                     </Button>
                     <div className="flex items-center gap-1">
                       {Array.from({ length: Math.min(5, paginatedData.totalPages) }, (_, i) => {
@@ -202,11 +212,12 @@ export default function HomePage() {
                         return (
                           <Button
                             key={pageNum}
-                            variant={paginatedData.page === pageNum ? "default" : "outline"}
-                            size="sm"
+                            variant={paginatedData.page === pageNum ? "default" : "ghost"}
+                            size="icon-sm"
                             onClick={() => handlePageChange(pageNum)}
                             disabled={loading}
-                            className="min-w-[40px]"
+                            aria-current={paginatedData.page === pageNum ? "page" : undefined}
+                            className="tabular-nums"
                           >
                             {pageNum}
                           </Button>
@@ -219,7 +230,7 @@ export default function HomePage() {
                       onClick={() => handlePageChange(paginatedData.page + 1)}
                       disabled={paginatedData.page === paginatedData.totalPages || loading}
                     >
-                      Next
+                      <span className="max-sm:sr-only">Next</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>

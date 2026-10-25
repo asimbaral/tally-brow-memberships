@@ -1,14 +1,26 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Dancing_Script, Fredoka } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+// Same type as the Tally Brow website: Fredoka for headings (rounded, sticker-book
+// voice), the system font for body text, and a script accent for short asides.
+const fredoka = Fredoka({
+  variable: '--font-fredoka',
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+const dancing = Dancing_Script({
+  variable: '--font-dancing',
+  subsets: ['latin'],
+  weight: ['600'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: 'Salon Membership Tracker',
+  title: 'Memberships | Tally Brow Studio',
   description: 'Track salon memberships and client visits',
   icons: {
     icon: [
@@ -29,14 +41,21 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fff7f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#1a1016' },
+  ],
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${fredoka.variable} ${dancing.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         <Toaster position="top-center" richColors />
         <Analytics />

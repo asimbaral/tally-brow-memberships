@@ -5,28 +5,31 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "pressable inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold tracking-[-0.003em] select-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand aria-invalid:ring-destructive/20 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        // Puffy candy button: a glossy top, a solid lip underneath. On press it
+        // sinks 3px onto the lip, so it reads as one object being pushed down.
+        default:
+          'text-on-brand [--press-y:3px] [--press-scale:0.98] bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--brand)_82%,white),var(--brand)_55%)] shadow-[0_2px_0_rgb(255_255_255/0.3)_inset,0_4px_0_var(--lip),var(--glow)] hover:bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--brand)_88%,white),color-mix(in_srgb,var(--brand)_92%,black)_55%)] active:bg-brand-press active:bg-none active:shadow-[0_1px_0_rgb(255_255_255/0.2)_inset,0_1px_0_var(--lip)]',
         destructive:
-          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
+          'bg-danger text-white [--press-y:3px] [--press-scale:0.98] shadow-[0_4px_0_color-mix(in_srgb,var(--danger)_70%,black)] hover:bg-[color-mix(in_srgb,var(--danger)_90%,black)] active:shadow-[0_1px_0_color-mix(in_srgb,var(--danger)_70%,black)]',
         outline:
-          'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
+          'bg-surface text-ink [--press-y:3px] [--press-scale:0.98] shadow-[0_0_0_2px_var(--lip-soft)_inset,0_4px_0_var(--lip-soft)] hover:bg-surface-2 active:bg-brand-tint active:shadow-[0_0_0_2px_var(--lip-soft)_inset,0_1px_0_var(--lip-soft)]',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+          'bg-brand-tint text-brand-ink hover:bg-[color-mix(in_srgb,var(--brand-tint)_85%,var(--brand))]',
         ghost:
-          'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'text-brand-ink hover:bg-brand-tint',
+        link: 'text-brand-ink underline-offset-4 hover:underline',
       },
       size: {
-        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
-        sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
-        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
-        icon: 'size-9',
-        'icon-sm': 'size-8',
-        'icon-lg': 'size-10',
+        default: 'min-h-11 px-5 text-[0.9375rem] has-[>svg]:px-4',
+        sm: 'min-h-9 gap-1.5 px-3.5 text-sm has-[>svg]:px-3',
+        lg: 'min-h-12 px-6 text-base has-[>svg]:px-5',
+        icon: 'size-11',
+        'icon-sm': 'size-9',
+        'icon-lg': 'size-12',
       },
     },
     defaultVariants: {

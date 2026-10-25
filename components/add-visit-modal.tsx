@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { VisitStamps } from "@/components/membership-list"
 
 interface AddVisitModalProps {
   isOpen: boolean
@@ -78,14 +79,16 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, membership }: Add
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-sm text-gray-700">
-            {membership.totalVisits} of {membership.maxVisits} visits used ·{" "}
-            {membership.remainingVisits} remaining
+          <div className="tile flex flex-wrap items-center justify-between gap-3">
+            <VisitStamps used={membership.totalVisits} max={membership.maxVisits} active />
+            <span className="type-small text-ink-2 tabular-nums">
+              {membership.totalVisits} of {membership.maxVisits} used · {membership.remainingVisits} left
+            </span>
           </div>
 
           {willExpire && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-              <div className="text-yellow-800 text-sm">
+            <div className="rounded-[1.25rem] bg-butter p-4">
+              <div className="type-small text-butter-ink">
                 <strong>Heads up:</strong> this is the final visit — the membership will expire after it is added.
               </div>
             </div>
