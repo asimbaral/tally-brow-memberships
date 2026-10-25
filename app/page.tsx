@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Filter, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Search, Plus, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -93,69 +93,72 @@ export default function HomePage() {
       </SiteHeader>
 
       <PageHero>
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <Eyebrow>Six visits per membership</Eyebrow>
-            <h1 className="type-display mt-4">
-              Client <span className="squiggle text-brand-ink">memberships</span>
-            </h1>
-            <p className="type-lead mt-3 max-w-xl text-ink-2">
-              Look up a client, log their visit, and see how many they have left. Each membership expires after 6 visits.
-            </p>
-          </div>
-          <Button onClick={() => setIsAddModalOpen(true)} size="lg" className="sm:hidden w-full">
-            <Plus className="h-4 w-4" />
-            Add New Membership
-          </Button>
-        </div>
+        <Eyebrow>Six visits per membership</Eyebrow>
+        <h1 className="type-display mt-4">
+          Client <span className="squiggle text-brand-ink">memberships</span>
+        </h1>
+        <p className="type-lead mt-3 max-w-xl text-ink-2">
+          Look up a client, log their visit, and see how many they have left. Each membership expires after 6 visits.
+        </p>
+        <Button onClick={() => setIsAddModalOpen(true)} size="lg" className="mt-6 w-full sm:hidden">
+          <Plus className="h-4 w-4" />
+          Add New Membership
+        </Button>
       </PageHero>
 
       <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
         <div className="card overflow-hidden">
-          <div className="border-b-2 border-line p-4 sm:p-6">
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="relative flex-1 min-w-[200px] max-w-md">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-ink h-4 w-4" />
-                <Input
-                  placeholder="Search by name or phone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Filter className="h-4 w-4 text-ink-2 shrink-0" />
-                <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                  <SelectTrigger className="w-44">
-                    <SelectValue placeholder="All Services" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Services</SelectItem>
-                    {allServiceTypes.map((service) => (
-                      <SelectItem key={service} value={service}>
-                        {service}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-36">
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
-                {hasFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    <X className="h-4 w-4" />
-                    Clear
-                  </Button>
-                )}
-              </div>
+          <div className="flex flex-col gap-3 border-b-2 border-line p-4 sm:flex-row sm:items-center sm:p-6">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-ink" />
+              <Input
+                type="search"
+                placeholder="Search by name or phone"
+                aria-label="Search memberships"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+              <Select value={serviceFilter} onValueChange={setServiceFilter}>
+                <SelectTrigger className="w-full sm:w-48" aria-label="Filter by service">
+                  <SelectValue placeholder="All Services" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Services</SelectItem>
+                  {allServiceTypes.map((service) => (
+                    <SelectItem key={service} value={service}>
+                      {service}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-36" aria-label="Filter by status">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex min-h-12 items-center justify-between gap-3 border-b-2 border-line px-4 py-2 sm:px-6">
+            <p className="type-small text-ink-2 tabular-nums" aria-live="polite">
+              {loading
+                ? "Loading…"
+                : `${paginatedData.total} ${paginatedData.total === 1 ? "membership" : "memberships"}${hasFilters ? " found" : ""}`}
+            </p>
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="-mr-3">
+                <X className="h-4 w-4" />
+                Clear filters
+              </Button>
+            )}
           </div>
 
           {loading ? (

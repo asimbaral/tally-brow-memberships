@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { VisitStamps } from "@/components/membership-list"
 
 interface AddVisitModalProps {
@@ -75,7 +75,8 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, membership }: Add
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Visit — {membership.user.name}</DialogTitle>
+          <DialogTitle>Add Visit</DialogTitle>
+          <DialogDescription>{membership.user.name}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -105,45 +106,47 @@ export function AddVisitModal({ isOpen, onClose, onVisitAdded, membership }: Add
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="staffName">Staff Member *</Label>
-            <Select
-              value={formData.staffName}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, staffName: value }))}
-            >
-              <SelectTrigger id="staffName">
-                <SelectValue placeholder="Select staff member" />
-              </SelectTrigger>
-              <SelectContent>
-                {STAFF_OPTIONS.map((staff) => (
-                  <SelectItem key={staff} value={staff}>
-                    {staff}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="staffName">Staff Member *</Label>
+              <Select
+                value={formData.staffName}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, staffName: value }))}
+              >
+                <SelectTrigger id="staffName" className="w-full">
+                  <SelectValue placeholder="Select staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAFF_OPTIONS.map((staff) => (
+                    <SelectItem key={staff} value={staff}>
+                      {staff}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="purchasedLocation">Location *</Label>
+              <Select
+                value={formData.purchasedLocation}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, purchasedLocation: value }))}
+              >
+                <SelectTrigger id="purchasedLocation" className="w-full">
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATION_OPTIONS.map((location) => (
+                    <SelectItem key={location} value={location}>
+                      {location}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="purchasedLocation">Location *</Label>
-            <Select
-              value={formData.purchasedLocation}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, purchasedLocation: value }))}
-            >
-              <SelectTrigger id="purchasedLocation">
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {LOCATION_OPTIONS.map((location) => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="grid grid-cols-2 gap-2 pt-2 sm:flex sm:justify-end">
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancel
             </Button>

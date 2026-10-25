@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, Plus, Phone, Calendar, Users } from "lucide-react"
+import Link from "next/link"
+import { ChevronRight, Plus, Phone, Calendar, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddVisitModal } from "./add-visit-modal"
@@ -54,163 +55,149 @@ export function MembershipList({ memberships, emptyMessage }: MembershipListProp
     )
   }
 
+  const lastVisitLabel = (id: string) => {
+    if (!visitsLoaded) return "…"
+    const lastVisit = lastVisits[id]
+    return lastVisit ? formatLocalDate(lastVisit) : "Never"
+  }
+
   return (
     <>
-      {/* Mobile card layout */}
-      <div className="divide-y-2 divide-line md:hidden">
+      {/* Mobile card layout — the whole card opens the membership; one action stays visible */}
+      <ul className="divide-y-2 divide-line md:hidden">
         {memberships.map((membership) => {
-          const lastVisit = lastVisits[membership.id]
           const isActive = membership.status === "active"
 
           return (
-            <div
+            <li
               key={membership.id}
-              className="p-4 transition-colors hover:bg-surface-2 active:bg-brand-tint cursor-pointer"
+              className="cursor-pointer px-4 py-4 transition-colors duration-100 hover:bg-surface-2 active:bg-brand-tint"
               onClick={() => router.push(`/client/${membership.id}`)}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-display text-lg font-semibold truncate">{membership.user.name}</div>
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/client/${membership.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="block truncate font-display text-lg font-semibold leading-tight"
+                  >
+                    {membership.user.name}
+                  </Link>
                   <div className="mt-1 flex items-center gap-1.5 type-small text-ink-2 tabular-nums">
                     <Phone className="h-3.5 w-3.5 shrink-0 text-brand-ink" />
                     <span className="truncate">{membership.phone}</span>
                   </div>
                 </div>
-                <Badge variant={isActive ? "success" : "destructive"} className="shrink-0">
-                  {isActive ? "Active" : "Expired"}
-                </Badge>
+                <StatusBadge active={isActive} />
+                <ChevronRight className="h-5 w-5 shrink-0 text-ink-2" aria-hidden />
               </div>
 
               {membership.serviceTypes.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {membership.serviceTypes.map((service) => (
-                    <Badge key={service} variant="secondary" className="text-xs">
-                      {service}
-                    </Badge>
-                  ))}
-                </div>
+                <ServiceBadges services={membership.serviceTypes} className="mt-3" />
               )}
 
-              <div className="mt-3 flex items-center gap-3">
-                <VisitStamps used={membership.totalVisits} max={membership.maxVisits} active={isActive} />
-                <span className="type-caption text-ink-2 tabular-nums">
-                  {membership.totalVisits}/{membership.maxVisits} visits
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <VisitProgress used={membership.totalVisits} max={membership.maxVisits} active={isActive} />
+                <span className="flex items-center gap-1.5 type-caption text-ink-2 tabular-nums whitespace-nowrap">
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-brand-ink" />
+                  {lastVisitLabel(membership.id)}
                 </span>
               </div>
 
-              <div className="mt-3 flex items-center gap-1.5 type-small text-ink-2">
-                <Calendar className="h-3.5 w-3.5 shrink-0 text-brand-ink" />
-                Last visit: {!visitsLoaded ? "…" : lastVisit ? formatLocalDate(lastVisit) : "Never"}
-              </div>
-
-              <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {isActive && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push(`/client/${membership.id}`)}
-                  className="flex-1"
-                >
-                  <Eye className="h-4 w-4" />
-                  View
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAddingVisitMembership(membership)}
-                  className="flex-1"
-                  disabled={!isActive}
-                  title={!isActive ? "This membership has expired" : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setAddingVisitMembership(membership)
+                  }}
+                  className="mt-4 w-full"
                 >
                   <Plus className="h-4 w-4" />
                   Add Visit
                 </Button>
-              </div>
-            </div>
+              )}
+            </li>
           )
         })}
-      </div>
+      </ul>
 
       {/* Desktop table layout */}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col className="w-[24%]" />
+            <col />
+            <col className="w-[11.5rem]" />
+            <col className="w-[9.5rem] max-lg:hidden" />
+            <col className="w-[10.5rem]" />
+          </colgroup>
           <thead className="bg-surface-2">
             <tr>
-              <th className="text-left py-3 px-6 type-eyebrow text-brand-ink">Name</th>
-              <th className="text-left py-3 px-6 type-eyebrow text-brand-ink">Phone</th>
-              <th className="text-left py-3 px-6 type-eyebrow text-brand-ink">Services</th>
-              <th className="text-left py-3 px-6 type-eyebrow text-brand-ink">Membership</th>
-              <th className="text-left py-3 px-6 type-eyebrow text-brand-ink">Last Visit</th>
-              <th className="text-left py-3 px-6 type-eyebrow text-brand-ink">Actions</th>
+              <th className="py-3 pl-6 pr-4 text-left type-eyebrow text-brand-ink">Client</th>
+              <th className="px-4 py-3 text-left type-eyebrow text-brand-ink">Services</th>
+              <th className="px-4 py-3 text-left type-eyebrow text-brand-ink">Visits</th>
+              <th className="px-4 py-3 text-left type-eyebrow text-brand-ink max-lg:hidden">Last Visit</th>
+              <th className="py-3 pl-4 pr-6 text-right type-eyebrow text-brand-ink">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y-2 divide-line">
             {memberships.map((membership) => {
-              const lastVisit = lastVisits[membership.id]
               const isActive = membership.status === "active"
-    
+
               return (
                 <tr
                   key={membership.id}
-                  className="transition-colors hover:bg-surface-2 cursor-pointer"
+                  className="group cursor-pointer align-middle transition-colors duration-100 hover:bg-surface-2 active:bg-brand-tint"
                   onClick={() => router.push(`/client/${membership.id}`)}
                 >
-                  <td className="py-4 px-6">
-                    <div className="font-display text-[1.0625rem] font-semibold">{membership.user.name}</div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2 text-ink-2 tabular-nums whitespace-nowrap">
-                      <Phone className="h-4 w-4 text-brand-ink" />
+                  <td className="py-4 pl-6 pr-4">
+                    <Link
+                      href={`/client/${membership.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="block truncate font-display text-[1.0625rem] font-semibold leading-tight hover:text-brand-ink"
+                    >
+                      {membership.user.name}
+                    </Link>
+                    <div className="mt-1 flex items-center gap-1.5 type-small text-ink-2 tabular-nums whitespace-nowrap">
+                      <Phone className="h-3.5 w-3.5 shrink-0 text-brand-ink" />
                       {membership.phone}
                     </div>
                   </td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-wrap gap-1">
-                      {membership.serviceTypes.map((service) => (
-                        <Badge key={service} variant="secondary" className="text-xs">
-                          {service}
-                        </Badge>
-                      ))}
+                  <td className="px-4 py-4">
+                    {membership.serviceTypes.length > 0 ? (
+                      <ServiceBadges services={membership.serviceTypes} />
+                    ) : (
+                      <span className="type-small text-ink-2">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <StatusBadge active={isActive} />
+                      <VisitProgress used={membership.totalVisits} max={membership.maxVisits} active={isActive} />
                     </div>
                   </td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col gap-1.5 min-w-[130px]">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={isActive ? "success" : "destructive"}>
-                          {isActive ? "Active" : "Expired"}
-                        </Badge>
-                        <span className="type-caption text-ink-2 tabular-nums">
-                          {membership.totalVisits}/{membership.maxVisits} visits
-                        </span>
-                      </div>
-                      <VisitStamps used={membership.totalVisits} max={membership.maxVisits} active={isActive} />
+                  <td className="px-4 py-4 max-lg:hidden">
+                    <div className="flex items-center gap-1.5 type-small text-ink-2 tabular-nums whitespace-nowrap">
+                      <Calendar className="h-3.5 w-3.5 shrink-0 text-brand-ink" />
+                      {lastVisitLabel(membership.id)}
                     </div>
                   </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2 text-ink-2 whitespace-nowrap">
-                      <Calendar className="h-4 w-4 text-brand-ink" />
-                      {!visitsLoaded ? "…" : lastVisit ? formatLocalDate(lastVisit) : "Never"}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push(`/client/${membership.id}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                        View
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setAddingVisitMembership(membership)}
-                        disabled={!isActive}
-                        title={!isActive ? "This membership has expired" : undefined}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Visit
-                      </Button>
+                  <td className="py-4 pl-4 pr-6" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      {isActive && (
+                        <Button variant="outline" size="sm" onClick={() => setAddingVisitMembership(membership)}>
+                          <Plus className="h-4 w-4" />
+                          Add Visit
+                        </Button>
+                      )}
+                      <ChevronRight
+                        className="h-5 w-5 shrink-0 text-ink-2 transition-transform duration-100 group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
                     </div>
                   </td>
                 </tr>
@@ -229,6 +216,38 @@ export function MembershipList({ memberships, emptyMessage }: MembershipListProp
         />
       )}
     </>
+  )
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return (
+    <Badge variant={active ? "success" : "destructive"} className="shrink-0">
+      {active ? "Active" : "Expired"}
+    </Badge>
+  )
+}
+
+function ServiceBadges({ services, className = "" }: { services: string[]; className?: string }) {
+  return (
+    <div className={`flex flex-wrap gap-1 ${className}`}>
+      {services.map((service) => (
+        <Badge key={service} variant="secondary" className="max-w-full truncate text-xs">
+          {service}
+        </Badge>
+      ))}
+    </div>
+  )
+}
+
+// Stamps and their count read as one unit, so they never wrap apart.
+export function VisitProgress({ used, max, active }: { used: number; max: number; active: boolean }) {
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <VisitStamps used={used} max={max} active={active} />
+      <span className="type-caption text-ink-2 tabular-nums">
+        {used}/{max}
+      </span>
+    </div>
   )
 }
 

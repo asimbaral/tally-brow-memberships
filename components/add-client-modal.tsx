@@ -252,40 +252,40 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input id="phone" value={formData.phone} disabled className="bg-surface-2" />
-                </div>
+                <div className="grid grid-cols-[3fr_2fr] gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input id="phone" value={formData.phone} disabled className="bg-surface-2" />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="zipCode">Zip Code *</Label>
-                  <Input
-                    id="zipCode"
-                    value={formData.zipCode}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, zipCode: e.target.value.replace(/\D/g, "") }))}
-                    placeholder="12345"
-                    maxLength={5}
-                    required
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="zipCode">Zip Code *</Label>
+                    <Input
+                      id="zipCode"
+                      value={formData.zipCode}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, zipCode: e.target.value.replace(/\D/g, "") }))}
+                      placeholder="12345"
+                      maxLength={5}
+                      required
+                    />
+                  </div>
                 </div>
               </>
             )}
 
             {step === "existing" && (
-              <div className="tile space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-ink-2">Name:</span>
-                  <span className="font-medium">{formData.name}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-ink-2">Phone:</span>
-                  <span className="font-medium">{formData.phone}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-ink-2">Zip Code:</span>
-                  <span className="font-medium">{formData.zipCode}</span>
-                </div>
-              </div>
+              <dl className="tile divide-y-2 divide-line py-1">
+                {[
+                  ["Name", formData.name],
+                  ["Phone", formData.phone],
+                  ["Zip code", formData.zipCode],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-baseline justify-between gap-4 py-2">
+                    <dt className="type-small text-ink-2">{label}</dt>
+                    <dd className="text-sm font-semibold tabular-nums text-right">{value}</dd>
+                  </div>
+                ))}
+              </dl>
             )}
 
             <div className="space-y-2">
@@ -356,42 +356,44 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="createdBy">Created By *</Label>
-              <Select
-                value={formData.createdBy}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, createdBy: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STAFF_OPTIONS.map((staff) => (
-                    <SelectItem key={staff} value={staff}>
-                      {staff}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="createdBy">Created By *</Label>
+                <Select
+                  value={formData.createdBy}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, createdBy: value }))}
+                >
+                  <SelectTrigger id="createdBy" className="w-full">
+                    <SelectValue placeholder="Select staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAFF_OPTIONS.map((staff) => (
+                      <SelectItem key={staff} value={staff}>
+                        {staff}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="location">Location *</Label>
-              <Select
-                value={formData.location}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, location: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LOCATION_OPTIONS.map((loc) => (
-                    <SelectItem key={loc} value={loc}>
-                      {loc}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label htmlFor="location">Location *</Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, location: value }))}
+                >
+                  <SelectTrigger id="location" className="w-full">
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOCATION_OPTIONS.map((loc) => (
+                      <SelectItem key={loc} value={loc}>
+                        {loc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -411,7 +413,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                   Still needed: {missingFields.join(", ")}
                 </p>
               )}
-              <div className="flex justify-end gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"
