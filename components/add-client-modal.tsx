@@ -15,7 +15,7 @@ import { toast } from "sonner"
 interface AddMembershipModalProps {
   isOpen: boolean
   onClose: () => void
-  onMembershipAdded: () => void
+  onMembershipAdded: (membershipId: string) => void
 }
 
 export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMembershipModalProps) {
@@ -152,7 +152,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
     setSubmitting(true)
     try {
       // Format the data to match Membership interface
-      await addMembership({
+      const membershipId = await addMembership({
         name: formData.name,
         phoneNumber: formData.phone,
         zipCode: formData.zipCode,
@@ -168,7 +168,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         emailAddress: null,
       })
       toast.success(`Membership added for ${formData.name}`)
-      onMembershipAdded()
+      onMembershipAdded(membershipId)
       onClose()
     } catch (error) {
       console.error("Error adding membership:", error)

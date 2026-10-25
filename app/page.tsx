@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Search, Plus, Filter, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,7 @@ import { type PaginatedMemberships, getMemberships, getAllServiceTypes } from "@
 const PAGE_SIZE = 50
 
 export default function HomePage() {
+  const router = useRouter()
   const [paginatedData, setPaginatedData] = useState<PaginatedMemberships>({
     memberships: [],
     total: 0,
@@ -65,12 +67,6 @@ export default function HomePage() {
     }, 400)
     return () => clearTimeout(timer)
   }, [searchTerm, serviceFilter, statusFilter, loadMemberships])
-
-  const handleMembershipUpdate = async () => {
-    await loadMemberships(currentPage, searchTerm, serviceFilter, statusFilter)
-    const services = await getAllServiceTypes()
-    setAllServiceTypes(services)
-  }
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= paginatedData.totalPages && newPage !== currentPage) {
@@ -171,7 +167,6 @@ export default function HomePage() {
             <>
               <MembershipList
                 memberships={paginatedData.memberships}
-                onMembershipUpdate={handleMembershipUpdate}
                 emptyMessage={
                   hasFilters
                     ? "No memberships match your search or filters. Try clearing them."
@@ -244,7 +239,7 @@ export default function HomePage() {
       <AddMembershipModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onMembershipAdded={handleMembershipUpdate}
+        onMembershipAdded={(membershipId) => router.push(`/client/${membershipId}`)}
       />
     </div>
   )

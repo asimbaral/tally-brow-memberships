@@ -415,7 +415,7 @@ export async function addMembershipForExistingUser(
     location: string
     assignedTo?: string
   }
-): Promise<void> {
+): Promise<string> {
   try {
     // Update metadata
     saveClientMetadata(userId, {
@@ -453,6 +453,8 @@ export async function addMembershipForExistingUser(
       staffName: membershipData.createdBy,
       purchasedLocation: membershipData.location,
     })
+
+    return newMembership.id
   } catch (error) {
     console.error('Error adding membership for existing user:', error)
     throw error
@@ -491,7 +493,7 @@ export async function addMembership(membershipData: {
   agreedToTerms?: boolean
   business?: string
   emailAddress?: string | null
-}): Promise<void> {
+}): Promise<string> {
   try {
     // Clean phone number before saving (remove formatting)
     const cleanedPhoneNumber = cleanPhoneNumber(membershipData.phoneNumber)
@@ -520,14 +522,13 @@ export async function addMembership(membershipData: {
 
     if (existingUser) {
       // User exists, just add a new membership
-      await addMembershipForExistingUser(existingUser.id, {
+      return await addMembershipForExistingUser(existingUser.id, {
         serviceTypes: membershipData.serviceTypes,
         notes: membershipData.notes,
         createdBy: membershipData.createdBy,
         location: membershipData.location,
         assignedTo: membershipData.assignedTo,
       })
-      return
     }
 
     // User doesn't exist, create new user
@@ -542,44 +543,44 @@ export async function addMembership(membershipData: {
       throw error
     }
 
-    if (data) {
-      // Save metadata to localStorage
-      saveClientMetadata(data.id, {
-        notes: membershipData.notes,
-        createdBy: membershipData.createdBy,
-        lastUpdatedBy: membershipData.createdBy,
-        lastUpdatedAt: new Date().toISOString(),
-        membershipStatus: "active",
-      })
+    // Save metadata to localStorage
+    saveClientMetadata(data.id, {
+      notes: membershipData.notes,
+      createdBy: membershipData.createdBy,
+      lastUpdatedBy: membershipData.createdBy,
+      lastUpdatedAt: new Date().toISOString(),
+      membershipStatus: "active",
+    })
 
-      // Create membership for the new user
-      const { data: newMembership, error: membershipError } = await supabase
-        .from('Memberships')
-        .insert([{
-          userId: data.id,
-          status: "active",
-          totalVisits: 0,
-          remainingVisits: 6,
-          maxVisits: 6,
-          services: membershipData.serviceTypes.length > 0 ? membershipData.serviceTypes : null,
-          assignedTo: membershipData.assignedTo || null,
-        }])
-        .select()
-        .single()
+    // Create membership for the new user
+    const { data: newMembership, error: membershipError } = await supabase
+      .from('Memberships')
+      .insert([{
+        userId: data.id,
+        status: "active",
+        totalVisits: 0,
+        remainingVisits: 6,
+        maxVisits: 6,
+        services: membershipData.serviceTypes.length > 0 ? membershipData.serviceTypes : null,
+        assignedTo: membershipData.assignedTo || null,
+      }])
+      .select()
+      .single()
 
-      if (membershipError) {
-        console.error('Error creating membership:', membershipError)
-        throw membershipError
-      }
-
-      // Automatically create the first visit
-      await addVisit({
-        membershipId: newMembership.id,
-        date: getLocalDateString(),
-        staffName: membershipData.createdBy,
-        purchasedLocation: membershipData.location,
-      })
+    if (membershipError) {
+      console.error('Error creating membership:', membershipError)
+      throw membershipError
     }
+
+    // Automatically create the first visit
+    await addVisit({
+      membershipId: newMembership.id,
+      date: getLocalDateString(),
+      staffName: membershipData.createdBy,
+      purchasedLocation: membershipData.location,
+    })
+
+    return newMembership.id
   } catch (error) {
     console.error('Error adding membership:', error)
     throw error

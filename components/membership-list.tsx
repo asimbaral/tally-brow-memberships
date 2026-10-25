@@ -11,11 +11,10 @@ import { formatLocalDate } from "@/lib/utils"
 
 interface MembershipListProps {
   memberships: Membership[]
-  onMembershipUpdate: () => void
   emptyMessage?: string
 }
 
-export function MembershipList({ memberships, onMembershipUpdate, emptyMessage }: MembershipListProps) {
+export function MembershipList({ memberships, emptyMessage }: MembershipListProps) {
   const router = useRouter()
   const [addingVisitMembership, setAddingVisitMembership] = useState<Membership | null>(null)
   const [lastVisits, setLastVisits] = useState<Record<string, string>>({})
@@ -225,7 +224,7 @@ export function MembershipList({ memberships, onMembershipUpdate, emptyMessage }
         <AddVisitModal
           isOpen={true}
           onClose={() => setAddingVisitMembership(null)}
-          onVisitAdded={onMembershipUpdate}
+          onVisitAdded={() => router.push(`/client/${addingVisitMembership.id}`)}
           membership={addingVisitMembership}
         />
       )}
