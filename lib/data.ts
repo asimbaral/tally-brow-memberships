@@ -521,6 +521,13 @@ export async function addMembership(membershipData: {
     }
 
     if (existingUser) {
+      if (membershipData.agreedToTerms) {
+        const { error: termsError } = await supabase
+          .from('Users')
+          .update({ agreedToTerms: true })
+          .eq('id', existingUser.id)
+        if (termsError) throw termsError
+      }
       // User exists, just add a new membership
       return await addMembershipForExistingUser(existingUser.id, {
         serviceTypes: membershipData.serviceTypes,

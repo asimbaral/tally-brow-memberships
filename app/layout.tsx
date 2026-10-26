@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Dancing_Script, Fredoka } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
+import { THEME, THEME_COLOR } from '@/lib/theme'
 import './globals.css'
 
 // Same type as the Tally Brow website: Fredoka for headings (rounded, sticker-book
@@ -42,10 +43,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fff7f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a1016' },
-  ],
+  themeColor: THEME_COLOR,
 }
 
 export default function RootLayout({
@@ -54,10 +52,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${fredoka.variable} ${dancing.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${THEME} ${fredoka.variable} ${dancing.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
-        <Toaster position="top-center" richColors />
+        <Toaster theme={THEME} position="top-center" richColors />
         <Analytics />
       </body>
     </html>

@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { addMembership, STAFF_OPTIONS, LOCATION_OPTIONS, getUserByPhone, getServices, formatPhoneNumberForDisplay } from "@/lib/data"
+import { MEMBERSHIP_TERMS } from "@/lib/terms"
 import { ChevronDown, Search } from "lucide-react"
 import { toast } from "sonner"
 
@@ -19,7 +21,7 @@ interface AddMembershipModalProps {
 }
 
 export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMembershipModalProps) {
-  const [step, setStep] = useState<"search" | "new" | "existing">("search")
+  const [step, setStep] = useState<"search" | "new" | "existing" | "terms">("search")
   const [searchPhone, setSearchPhone] = useState("")
   const [existingClient, setExistingClient] = useState<{ name: string; phone: string; zipCode: string } | null>(null)
   const [servicesByCategory, setServicesByCategory] = useState<Record<string, string[]>>({})
@@ -27,6 +29,8 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
   const [loadingServices, setLoadingServices] = useState(false)
   const [searching, setSearching] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [agreed, setAgreed] = useState(false)
+  const [signature, setSignature] = useState("")
 
   const [formData, setFormData] = useState({
     name: "",
@@ -80,6 +84,8 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
       setStep("search")
       setSearchPhone("")
       setExistingClient(null)
+      setAgreed(false)
+      setSignature("")
       setFormData({
         name: "",
         phone: "",
@@ -145,9 +151,17 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
     !formData.location.trim() && "location",
   ].filter(Boolean) as string[]
 
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (missingFields.length > 0) return
+    setStep("terms")
+  }
+
+  const canSign = agreed && signature.trim().length > 0
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (submitting || missingFields.length > 0) return
+    if (submitting || missingFields.length > 0 || !canSign) return
 
     setSubmitting(true)
     try {
@@ -163,7 +177,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         notes: formData.notes,
         usesPhone: true,
         optedIn: false,
-        agreedToTerms: false,
+        agreedToTerms: true,
         business: "TallyBrowStudio",
         emailAddress: null,
       })
@@ -228,7 +242,7 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
         )}
 
         {(step === "new" || step === "existing") && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleNext} className="space-y-4">
             {step === "existing" && existingClient && (
               <div className="rounded-[1.25rem] bg-lilac p-4 space-y-1">
                 <p className="type-eyebrow text-lilac-ink">Existing client found</p>
@@ -426,10 +440,71 @@ export function AddMembershipModal({ isOpen, onClose, onMembershipAdded }: AddMe
                 >
                   Back
                 </Button>
-                <Button type="submit" disabled={submitting || missingFields.length > 0}>
-                  {submitting ? "Adding…" : "Add Membership"}
+                <Button type="submit" disabled={missingFields.length > 0}>
+                  Next
                 </Button>
               </div>
+            </div>
+          </form>
+        )}
+
+        {step === "terms" && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Terms and Conditions</Label>
+              <div className="tile max-h-[40vh] overflow-y-auto space-y-3 p-4">
+                {MEMBERSHIP_TERMS.map((term, i) => (
+                  <div key={term.title} className="space-y-1">
+                    <p className="text-sm font-semibold">
+                      {i + 1}. {term.title}
+                    </p>
+                    <p className="type-small text-ink-2">{term.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={agreed}
+                onCheckedChange={(checked) => setAgreed(checked === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                I, {formData.name}, have read and agree to the terms and conditions above.
+              </span>
+            </label>
+
+            <div className="space-y-2">
+              <Label htmlFor="signature">Type your full name to sign *</Label>
+              <Input
+                id="signature"
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                placeholder={formData.name}
+                autoComplete="off"
+              />
+              <div className="rounded-[1.25rem] border-2 border-dashed border-lip-soft px-4 pt-3 pb-2">
+                <p className="type-script text-3xl min-h-[2.5rem] text-ink break-words">{signature}</p>
+                <div className="border-t-2 border-line mt-1 pt-1 flex justify-between type-caption text-ink-2">
+                  <span>Signature</span>
+                  <span className="tabular-nums">{new Date().toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-4 sm:flex sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={submitting}
+                onClick={() => setStep(existingClient ? "existing" : "new")}
+              >
+                Back
+              </Button>
+              <Button type="submit" disabled={submitting || !canSign}>
+                {submitting ? "Adding…" : "Add Membership"}
+              </Button>
             </div>
           </form>
         )}
